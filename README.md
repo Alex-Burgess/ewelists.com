@@ -1,11 +1,11 @@
 # ewelists.com
-Main ewelists.com project
+The main ewelists.com project
 
 
 ## Web Stack
 
 ### Create a Test Environment
-The architecture employed here, uses
+In the steps below, we create all the web components in one stack, except for the SSL certificate.  This is because the SSL needs to be created in the us-east-1 region and it also requires the hosted zone for the environment to be created, so that it can be validated.  The certificate ID is stored in a parameter store variable so that it can be programmatically referenced.
 
 1. **Web Stack:** Create Web stack with default SSL certificate.
     ```
