@@ -42,7 +42,7 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     Properties:
-      BucketName: !Sub "${Environment}.${DomainName}-logging"
+      BucketName: !If [Prod, !Sub "${DomainName}-logging", !Sub "${Environment}.${DomainName}-logging"]
       AccessControl: LogDeliveryWrite
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
