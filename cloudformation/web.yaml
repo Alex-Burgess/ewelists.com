@@ -1,0 +1,417 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Creates the services to build the website, including S3, CloudFront, Route53 record sets, etc.
+Parameters:
+  DomainName:
+    Description: Domain name for your website (example.com)
+    Type: String
+    AllowedPattern: "^[a-z0-9-]*.com$"
+    ConstraintDescription: Must be a web domain, ending in .com. Can include lower case letters, numbers and hypens.
+    Default: ewelists.com
+  AlternateDomainName:
+    Description: Alternate Domain name for your website (example.co.uk)
+    Type: String
+    AllowedPattern: "^[a-z0-9-]*.co.uk$"
+    ConstraintDescription: Must be a web domain, ending in .co.uk. Can include lower case letters, numbers and hypens.
+    Default: ewelists.co.uk
+  DefaultSSLCertificate:
+    Description: Boolean flag which defines if cloudfront should use the default SSL certificate.  If parameter is not true a SSL certificate ID is retrieved from parameter store.
+    Type: String
+    Default: false
+  SSLCertificateIdParameterVersion:
+    Description: Version number of the parameter which stores the SSL certificate ID.
+    Type: String
+    Default: 1
+  Environment:
+    Description: Environment type.
+    Default: test
+    Type: String
+    AllowedValues:
+      - prod
+      - staging
+      - dev
+      - test
+    ConstraintDescription: must specify prod, staging, dev or test.
+
+Conditions:
+  Prod: !Equals [ !Ref Environment, prod ]
+  NotProd: !Not [!Equals [!Ref Environment, prod]]
+  UseDefaultSSLCertificate: !Equals [ "true", !Ref DefaultSSLCertificate ]
+
+Resources:
+  LoggingBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub "${Environment}.${DomainName}-logging"
+      AccessControl: LogDeliveryWrite
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: CloudFront logs expiration
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+            ExpirationInDays: 30
+            Prefix: cf-*
+            Status: Enabled
+          - Id: S3 logs expiration
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+            ExpirationInDays: 30
+            Prefix: s3-*
+            Status: Enabled
+
+  WebBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !If [Prod, !Ref DomainName, !Sub "${Environment}.${DomainName}"]
+      AccessControl: Private
+      LoggingConfiguration:
+        DestinationBucketName: !Ref LoggingBucket
+        LogFilePrefix: !If [Prod, !Sub 's3-${DomainName}-logs/', !Sub 's3-${Environment}.${DomainName}-logs/']
+      MetricsConfigurations:
+        - Id: EntireBucket
+      WebsiteConfiguration:
+        IndexDocument: "index.html"
+        # ErrorDocument: "error.html"
+        RoutingRules:
+        - RedirectRule:
+            HostName: !If [Prod, !Ref DomainName, !Sub "${Environment}.${DomainName}"]
+            ReplaceKeyWith: ""
+          RoutingRuleCondition:
+            HttpErrorCodeReturnedEquals: "403"
+
+  WebBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    DeletionPolicy: Retain
+    Properties:
+      Bucket: !Ref WebBucket
+      PolicyDocument:
+        Id: PolicyForCloudFrontPrivateContent
+        Version: 2012-10-17
+        Statement:
+          - Sid: CloudFrontGetBucketObjects
+            Effect: Allow
+            Action: 's3:GetObject'
+            Resource: !Sub 'arn:aws:s3:::${WebBucket}/*'
+            Principal:
+              AWS: !Sub
+                arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity
+                ${WebBucketOriginAccessIdentity}
+          # - Sid: PublicReadForErrorPage
+          #   Effect: Allow
+          #   Principal: '*'
+          #   Action: 's3:GetObject'
+          #   Resource: !Sub 'arn:aws:s3:::${WebBucket}/404.html'
+
+  RedirectBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'www.${WebBucket}'
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      LoggingConfiguration:
+        DestinationBucketName: !Ref LoggingBucket
+        LogFilePrefix: !Sub 's3-www.${WebBucket}-logs/'
+      WebsiteConfiguration:
+        RedirectAllRequestsTo:
+          HostName: !Ref WebBucket
+
+  WebBucketOriginAccessIdentity:
+    Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Sub 'OriginAccessIdentity for ${WebBucket}'
+
+  WebDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+        - DomainName: !Sub '${WebBucket}.s3.amazonaws.com'
+          Id: !Sub 'S3-${WebBucket}'
+          S3OriginConfig:
+            OriginAccessIdentity: !Sub >-
+              origin-access-identity/cloudfront/${WebBucketOriginAccessIdentity}
+        Enabled: true
+        Comment: "CDN for web bucket."
+        DefaultRootObject: index.html
+        HttpVersion: http2
+        Logging:
+          IncludeCookies: false
+          Bucket: !GetAtt LoggingBucket.DomainName
+          Prefix: !Sub 'cf-${WebBucket}-logs/'
+        Aliases:
+          - !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", !Sub '${WebBucket}' ]
+        DefaultCacheBehavior:
+          TargetOriginId: !Sub 'S3-${WebBucket}'
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+          ViewerProtocolPolicy: redirect-to-https
+        # CustomErrorResponses:
+        # - ErrorCode: 403
+        #   ResponsePagePath: "/404.html"
+        #   ResponseCode: 200
+        #   ErrorCachingMinTTL: 30
+        CustomErrorResponses:
+        - ErrorCode: 403
+          ResponsePagePath: "/index.html"
+          ResponseCode: 200
+          ErrorCachingMinTTL: 300
+        - ErrorCode: 404
+          ResponsePagePath: "/index.html"
+          ResponseCode: 200
+          ErrorCachingMinTTL: 300
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn:
+            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", !Sub 'arn:aws:acm:us-east-1:${AWS::AccountId}:certificate/{{resolve:ssm:/${DomainName}/${Environment}/SSLCertificateId:${SSLCertificateIdParameterVersion}}}']
+          SslSupportMethod:
+            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", sni-only]
+          MinimumProtocolVersion:
+            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", TLSv1.1_2016]
+          CloudFrontDefaultCertificate:
+            !If [UseDefaultSSLCertificate, true, !Ref "AWS::NoValue" ]
+
+  RedirectDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+        - DomainName: !Select [2, !Split ["/", !GetAtt RedirectBucket.WebsiteURL]]
+          Id: !Sub 'S3-${RedirectBucket}'
+          CustomOriginConfig:
+            HTTPPort: 80
+            HTTPSPort: 443
+            OriginProtocolPolicy: http-only
+        Enabled: true
+        Comment: "CDN for www redirect."
+        HttpVersion: http2
+        Logging:
+          IncludeCookies: false
+          Bucket: !GetAtt LoggingBucket.DomainName
+          Prefix: !Sub 'cf-www.${WebBucket}-logs/'
+        Aliases:
+          - !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", !Sub '${RedirectBucket}' ]
+        DefaultCacheBehavior:
+          TargetOriginId: !Sub 'S3-${RedirectBucket}'
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+          ViewerProtocolPolicy: allow-all
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn:
+            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", !Sub 'arn:aws:acm:us-east-1:${AWS::AccountId}:certificate/{{resolve:ssm:/${DomainName}/${Environment}/SSLCertificateId:${SSLCertificateIdParameterVersion}}}']
+          SslSupportMethod:
+            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", sni-only]
+          MinimumProtocolVersion:
+            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", TLSv1.1_2016]
+          CloudFrontDefaultCertificate:
+            !If [UseDefaultSSLCertificate, true, !Ref "AWS::NoValue" ]
+
+  CoUkBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !If [Prod, !Ref AlternateDomainName, !Sub "${Environment}.${AlternateDomainName}"]
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      LoggingConfiguration:
+        DestinationBucketName: !Ref LoggingBucket
+        LogFilePrefix: !If [Prod, !Sub 's3-${AlternateDomainName}-logs/', !Sub 's3-${Environment}.${AlternateDomainName}-logs/']
+      WebsiteConfiguration:
+        RedirectAllRequestsTo:
+          HostName: !Ref WebBucket
+
+  WwwCoUkBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'www.${CoUkBucket}'
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      LoggingConfiguration:
+        DestinationBucketName: !Ref LoggingBucket
+        LogFilePrefix: !Sub 's3-www.${CoUkBucket}-logs/'
+      WebsiteConfiguration:
+        RedirectAllRequestsTo:
+          HostName: !Ref WebBucket
+
+  CoUkDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+        - DomainName: !Select [2, !Split ["/", !GetAtt CoUkBucket.WebsiteURL]]
+          Id: !Sub 'S3-${CoUkBucket}'
+          CustomOriginConfig:
+            HTTPPort: 80
+            HTTPSPort: 443
+            OriginProtocolPolicy: http-only
+        Enabled: true
+        Comment: "CDN for redirect."
+        HttpVersion: http2
+        Logging:
+          IncludeCookies: false
+          Bucket: !GetAtt LoggingBucket.DomainName
+          Prefix: !Sub 'cf-${CoUkBucket}-logs/'
+        Aliases:
+        - !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", !Sub '${CoUkBucket}' ]
+        DefaultCacheBehavior:
+          TargetOriginId: !Sub 'S3-${CoUkBucket}'
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+          ViewerProtocolPolicy: allow-all
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn:
+            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", !Sub 'arn:aws:acm:us-east-1:${AWS::AccountId}:certificate/{{resolve:ssm:/${DomainName}/${Environment}/SSLCertificateId:${SSLCertificateIdParameterVersion}}}']
+          SslSupportMethod:
+            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", sni-only]
+          MinimumProtocolVersion:
+            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", TLSv1.1_2016]
+          CloudFrontDefaultCertificate:
+            !If [UseDefaultSSLCertificate, true, !Ref "AWS::NoValue" ]
+
+  WwwCoUkDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+        - DomainName: !Select [2, !Split ["/", !GetAtt WwwCoUkBucket.WebsiteURL]]
+          Id: !Sub 'S3-www.${CoUkBucket}'
+          CustomOriginConfig:
+            HTTPPort: 80
+            HTTPSPort: 443
+            OriginProtocolPolicy: http-only
+        Enabled: true
+        Comment: "CDN for www redirect."
+        HttpVersion: http2
+        Logging:
+          IncludeCookies: false
+          Bucket: !GetAtt LoggingBucket.DomainName
+          Prefix: !Sub 'cf-www.${CoUkBucket}-logs/'
+        Aliases:
+        - !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", !Sub 'www.${CoUkBucket}' ]
+        DefaultCacheBehavior:
+          TargetOriginId: !Sub 'S3-www.${CoUkBucket}'
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+          ViewerProtocolPolicy: allow-all
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn:
+            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", !Sub 'arn:aws:acm:us-east-1:${AWS::AccountId}:certificate/{{resolve:ssm:/${DomainName}/${Environment}/SSLCertificateId:${SSLCertificateIdParameterVersion}}}']
+          SslSupportMethod:
+            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", sni-only]
+          MinimumProtocolVersion:
+            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", TLSv1.1_2016]
+          CloudFrontDefaultCertificate:
+            !If [UseDefaultSSLCertificate, true, !Ref "AWS::NoValue" ]
+
+  SubDomainHostedZone:
+    Type: "AWS::Route53::HostedZone"
+    Condition: NotProd
+    Properties:
+      HostedZoneConfig:
+        Comment: "Hosted zone for a subdomain of main site, used for testing"
+      Name: !Ref 'WebBucket'
+      HostedZoneTags:
+        - Key: "Environment"
+          Value: !Ref Environment
+
+  SubDomainRecord:
+    Type: AWS::Route53::RecordSet
+    Condition: NotProd
+    Properties:
+      HostedZoneName: !Join [ '', [ !Ref DomainName, "." ] ]
+      Comment: Naming servers for subdomain hosted zone.
+      Name: !Ref 'WebBucket'
+      Type: NS
+      TTL: '172800'
+      ResourceRecords: !GetAtt SubDomainHostedZone.NameServers
+
+  WebsiteDNSName:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneName: !Join [ '', [ !Ref WebBucket, "." ] ]
+      RecordSets:
+      - Name: !Ref 'WebBucket'
+        Type: A
+        AliasTarget:
+          HostedZoneId: Z2FDTNDATAQYW2
+          DNSName: !GetAtt [WebDistribution, DomainName]
+      - Name: !Ref RedirectBucket
+        Type: A
+        AliasTarget:
+          HostedZoneId: Z2FDTNDATAQYW2
+          DNSName: !GetAtt [RedirectDistribution, DomainName]
+
+  CoUkSubDomainHostedZone:
+    Type: "AWS::Route53::HostedZone"
+    Condition: NotProd
+    Properties:
+      HostedZoneConfig:
+        Comment: "Hosted zone for a subdomain of main site, used for testing"
+      Name: !Ref 'CoUkBucket'
+      HostedZoneTags:
+        - Key: "Environment"
+          Value: !Ref Environment
+
+  CoUkSubDomainRecord:
+    Type: AWS::Route53::RecordSet
+    Condition: NotProd
+    Properties:
+      HostedZoneName: !Join [ '', [ !Ref AlternateDomainName, "." ] ]
+      Comment: Naming servers for subdomain hosted zone.
+      Name: !Ref 'CoUkBucket'
+      Type: NS
+      TTL: '172800'
+      ResourceRecords: !GetAtt CoUkSubDomainHostedZone.NameServers
+
+  CoUkWebsiteDNSName:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneName: !Join [ '', [ !Ref CoUkBucket, "." ] ]
+      RecordSets:
+      - Name: !Ref 'CoUkBucket'
+        Type: A
+        AliasTarget:
+          HostedZoneId: Z2FDTNDATAQYW2
+          DNSName: !GetAtt [CoUkDistribution, DomainName]
+      - Name: !Sub 'www.${CoUkBucket}'
+        Type: A
+        AliasTarget:
+          HostedZoneId: Z2FDTNDATAQYW2
+          DNSName: !GetAtt [WwwCoUkDistribution, DomainName]
+
+Outputs:
+  WebCloudFrontUrl:
+    Description: The URL for the CloudFront distribution of the main site bucket.
+    Value: !Sub
+      - https://${Domain}
+      - { Domain: !GetAtt WebDistribution.DomainName }
+  WebCloudFrontID:
+    Description: The ID for the CloudFront distribution of the main site bucket.
+    Value: !Ref WebDistribution
