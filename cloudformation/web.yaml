@@ -76,7 +76,6 @@ Resources:
         - Id: EntireBucket
       WebsiteConfiguration:
         IndexDocument: "index.html"
-        # ErrorDocument: "error.html"
         RoutingRules:
         - RedirectRule:
             HostName: !If [Prod, !Ref DomainName, !Sub "${Environment}.${DomainName}"]
@@ -101,11 +100,6 @@ Resources:
               AWS: !Sub
                 arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity
                 ${WebBucketOriginAccessIdentity}
-          # - Sid: PublicReadForErrorPage
-          #   Effect: Allow
-          #   Principal: '*'
-          #   Action: 's3:GetObject'
-          #   Resource: !Sub 'arn:aws:s3:::${WebBucket}/404.html'
 
   RedirectBucket:
     Type: AWS::S3::Bucket
@@ -157,11 +151,6 @@ Resources:
             Cookies:
               Forward: none
           ViewerProtocolPolicy: redirect-to-https
-        # CustomErrorResponses:
-        # - ErrorCode: 403
-        #   ResponsePagePath: "/404.html"
-        #   ResponseCode: 200
-        #   ErrorCachingMinTTL: 30
         CustomErrorResponses:
         - ErrorCode: 403
           ResponsePagePath: "/index.html"

@@ -1,0 +1,448 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Pipeline for deployment to s3 bucket with static website.
+Parameters:
+  PipelineName:
+    Type: String
+    Description: Name of application used to describe resources.
+    Default: web-pipeline
+    AllowedPattern: "^[-a-z0-9]*$"
+    ConstraintDescription: Application name can include numbers, lowercase letters, and hyphens (-).
+  # GitReleaseNumber:
+  #   Type: String
+  #   Description: Current release number of the website content project
+  GitHubUser:
+    Type: String
+    Description: GitHub User
+    Default: Alex-Burgess
+  GitHubInfraRepo:
+    Type: String
+    Description: GitHub Repository Name
+    Default: ewelists.com
+  GitHubContentRepo:
+    Type: String
+    Description: GitHub Repository Name
+    Default: ewelists.com-web
+  GitHubBranch:
+    Type: String
+    Description: GitHub Branch
+    Default: "master"
+  GitHubToken:
+    Type: String
+    NoEcho: true
+    Description: Personal Access Token.
+  WebTemplatePath:
+    Default: cloudformation/web.yaml
+    Description: The path of the Web stack template
+    Type: String
+
+Resources:
+  PipelineArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${PipelineName}-artifacts'
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      LifecycleConfiguration:
+        Rules:
+          - Id: Build logs expiration
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+            ExpirationInDays: 180
+            Prefix: !Sub '${PipelineName}-artifacts*'
+            Status: Enabled
+
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${PipelineName}-ServiceRole'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: PipelineServiceRolePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - cloudformation:CreateStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DeleteStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:SetStackPolicy
+                  - iam:PassRole
+                  - sns:Publish
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                Resource: "*"
+
+  WebStackCFNRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${PipelineName}-WebStack-CloudFormationRole'
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: ['sts:AssumeRole']
+          Effect: Allow
+          Principal:
+            Service: [cloudformation.amazonaws.com]
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+        - PolicyName: ManageCloudFormation
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DeleteStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                Effect: Allow
+                Resource: '*'
+        - PolicyName: SSLCertificateIdParameterStore
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - ssm:GetParameters
+                Effect: Allow
+                Resource:
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/ewelists.com/staging/SSLCertificateId'
+        - PolicyName: ManageStagingS3
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - s3:GetObject
+                  - s3:CreateBucket
+                  - s3:DeleteBucket
+                  - s3:PutBucketPublicAccessBlock
+                  - s3:PutLifecycleConfiguration
+                  - s3:PutBucketAcl
+                  - s3:GetBucketAcl
+                  - s3:PutBucketLogging
+                  - s3:PutMetricsConfiguration
+                  - s3:PutBucketWebsite
+                  - s3:PutBucketPolicy
+                  - s3:GetBucketPolicy
+                Effect: Allow
+                Resource:
+                  - "arn:aws:s3:::staging.ewelists.com"
+                  - "arn:aws:s3:::staging.ewelists.com/*"
+                  - "arn:aws:s3:::staging.ewelists.co.uk"
+                  - "arn:aws:s3:::staging.ewelists.co.uk/*"
+                  - "arn:aws:s3:::www.staging.ewelists.com"
+                  - "arn:aws:s3:::www.staging.ewelists.com/*"
+                  - "arn:aws:s3:::www.staging.ewelists.co.uk"
+                  - "arn:aws:s3:::www.staging.ewelists.co.uk/*"
+                  - "arn:aws:s3:::staging.ewelists.com-logging"
+                  - "arn:aws:s3:::staging.ewelists.com-logging/*"
+        - PolicyName: ManageProdS3
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - s3:GetObject
+                  - s3:CreateBucket
+                  - s3:DeleteBucket
+                  - s3:PutBucketPublicAccessBlock
+                  - s3:PutLifecycleConfiguration
+                  - s3:PutBucketAcl
+                  - s3:GetBucketAcl
+                  - s3:PutBucketLogging
+                  - s3:PutMetricsConfiguration
+                  - s3:PutBucketWebsite
+                  - s3:PutBucketPolicy
+                  - s3:GetBucketPolicy
+                Effect: Allow
+                Resource:
+                  - "arn:aws:s3:::ewelists.com"
+                  - "arn:aws:s3:::ewelists.com/*"
+                  - "arn:aws:s3:::ewelists.co.uk"
+                  - "arn:aws:s3:::ewelists.co.uk/*"
+                  - "arn:aws:s3:::www.ewelists.com"
+                  - "arn:aws:s3:::www.ewelists.com/*"
+                  - "arn:aws:s3:::www.ewelists.co.uk"
+                  - "arn:aws:s3:::www.ewelists.co.uk/*"
+                  - "arn:aws:s3:::ewelists.com-logging"
+                  - "arn:aws:s3:::ewelists.com-logging/*"
+        - PolicyName: ManageRoute53
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - route53:*
+                Effect: Allow
+                Resource:
+                  - "*"
+        - PolicyName: ManageCloudFront
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - cloudfront:CreateCloudFrontOriginAccessIdentity
+                  - cloudfront:CreateDistribution
+                  - cloudfront:DeleteDistribution
+                  - cloudfront:GetCloudFrontOriginAccessIdentity
+                  - cloudfront:GetCloudFrontOriginAccessIdentityConfig
+                  - cloudfront:DeleteCloudFrontOriginAccessIdentity
+                  - cloudfront:TagResource
+                  - cloudfront:GetDistribution
+                  - cloudfront:UpdateDistribution
+                Effect: Allow
+                Resource:
+                  - "*"
+
+# Project Role
+  # ContentBuildRole:
+  #   Type: AWS::IAM::Role
+  #   Properties:
+  #     RoleName: !Sub '${ApplicationName}-ContentBuildRole'
+  #     AssumeRolePolicyDocument:
+  #       Statement:
+  #       - Effect: Allow
+  #         Principal:
+  #           Service:
+  #           - codebuild.amazonaws.com
+  #         Action:
+  #         - sts:AssumeRole
+  #     Path: "/"
+  #     Policies:
+  #     - PolicyName: BuildServiceRolePolicy
+  #       PolicyDocument:
+  #         Statement:
+  #         - Effect: Allow
+  #           Action:
+  #             - logs:CreateLogGroup
+  #             - logs:CreateLogStream
+  #             - logs:PutLogEvents
+  #           Resource:
+  #             - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${ApplicationName}-buildlogs"
+  #             - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${ApplicationName}-buildlogs:*"
+  #         - Effect: Allow
+  #           Action:
+  #             - s3:PutObject
+  #             - s3:GetObject
+  #             - s3:GetObjectVersion
+  #             - s3:GetBucketAcl
+  #             - s3:GetBucketLocation
+  #           Resource:
+  #             - !Sub "arn:aws:s3:::${PipelineArtifactBucket}/*"
+  #         - Effect: Allow
+  #           Action:
+  #             - s3:DeleteObject
+  #             - s3:PutObject
+  #             - s3:GetObject
+  #             - s3:GetObjectVersion
+  #             - s3:ListBucket
+  #           Resource:
+  #             - !Sub "arn:aws:s3:::${ContentBucketName}/*"
+  #             - !Sub "arn:aws:s3:::${ContentBucketName}"
+  #             - !Sub "arn:aws:s3:::staging.${ContentBucketName}/*"
+  #             - !Sub "arn:aws:s3:::staging.${ContentBucketName}"
+  #         Version: '2012-10-17'
+
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Ref PipelineName
+      RoleArn: !GetAtt PipelineRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref PipelineArtifactBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: TemplateSource
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: '1'
+                Provider: GitHub
+              OutputArtifacts:
+              - Name: TemplateSource
+              Configuration:
+                Owner: !Ref GitHubUser
+                Repo: !Ref GitHubInfraRepo
+                Branch: !Ref GitHubBranch
+                OAuthToken: !Ref GitHubToken
+              RunOrder: 1
+        - Name: Staging
+          Actions:
+            - Name: DeployStack
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              InputArtifacts:
+                - Name: TemplateSource
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                StackName: Web-Staging
+                TemplatePath: !Sub "TemplateSource::${WebTemplatePath}"
+                ParameterOverrides: '{ "Environment": "staging" }'
+              RunOrder: 1
+            # - Name: DeployContent
+            #   ActionTypeId:
+            #     Category: Build
+            #     Owner: AWS
+            #     Version: '1'
+            #     Provider: CodeBuild
+            #   InputArtifacts:
+            #   - Name: HugoSource
+            #   Configuration:
+            #     ProjectName: !Ref StagingContentCodeBuildProject
+            #   RunOrder: 2
+        - Name: Production
+          Actions:
+            - Name: CreateChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              InputArtifacts:
+                - Name: TemplateSource
+              Configuration:
+                ActionMode: CHANGE_SET_REPLACE
+                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                StackName: Web-Prod
+                ChangeSetName: Web-Prod-ChangeSet
+                TemplatePath: !Sub "TemplateSource::${WebTemplatePath}"
+                ParameterOverrides: '{ "Environment": "prod" }'
+              RunOrder: 1
+            - Name: ApproveChangeSet
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: '1'
+              RunOrder: 2
+            - Name: ExecuteChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: Web-Prod-ChangeSet
+                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                StackName: Web-Prod
+              RunOrder: 3
+
+  # StagingContentCodeBuildProject:
+  #   Type: AWS::CodeBuild::Project
+  #   DependsOn: BuildLogsGroup
+  #   Properties:
+  #     Name: !Sub ${ApplicationName}-Staging-DeploySite
+  #     Description: Performs static website deloyment tasks
+  #     ServiceRole: !GetAtt ContentBuildRole.Arn
+  #     Artifacts:
+  #       Type: CODEPIPELINE
+  #     Cache:
+  #       Type: LOCAL
+  #       Modes:
+  #       - LOCAL_DOCKER_LAYER_CACHE
+  #     Environment:
+  #       Type: LINUX_CONTAINER
+  #       ComputeType: BUILD_GENERAL1_SMALL
+  #       Image: aws/codebuild/standard:1.0
+  #       EnvironmentVariables:
+  #         - Name: BUILD_NUMBER
+  #           Type: PLAINTEXT
+  #           Value: !Ref GitReleaseNumber
+  #         - Name: BUILD_BUCKET
+  #           Type: PLAINTEXT
+  #           Value: !Ref PipelineArtifactBucket
+  #         - Name: HUGO_VERSION
+  #           Type: PLAINTEXT
+  #           Value: "0.55.4"
+  #         - Name: SITE_BUCKET
+  #           Type: PLAINTEXT
+  #           Value: !Sub staging.${ContentBucketName}
+  #         - Name: HUGO_CONFIG
+  #           Type: PLAINTEXT
+  #           Value: config.staging.toml
+  #     Source:
+  #       Type: CODEPIPELINE
+  #       BuildSpec: buildspec.yaml
+  #     LogsConfig:
+  #       CloudWatchLogs:
+  #         Status: ENABLED
+  #         GroupName: !Sub ${ApplicationName}-buildlogs
+  #         StreamName: StagingContentDeployment
+  #     TimeoutInMinutes: 10
+  #
+  # ProdContentCodeBuildProject:
+  #   Type: AWS::CodeBuild::Project
+  #   DependsOn: BuildLogsGroup
+  #   Properties:
+  #     Name: !Sub ${ApplicationName}-Prod-DeploySite
+  #     Description: Performs static website deloyment tasks
+  #     ServiceRole: !GetAtt ContentBuildRole.Arn
+  #     Artifacts:
+  #       Type: CODEPIPELINE
+  #     Cache:
+  #       Type: LOCAL
+  #       Modes:
+  #       - LOCAL_DOCKER_LAYER_CACHE
+  #     Environment:
+  #       Type: LINUX_CONTAINER
+  #       ComputeType: BUILD_GENERAL1_SMALL
+  #       Image: aws/codebuild/standard:1.0
+  #       EnvironmentVariables:
+  #         - Name: BUILD_NUMBER
+  #           Type: PLAINTEXT
+  #           Value: !Ref GitReleaseNumber
+  #         - Name: BUILD_BUCKET
+  #           Type: PLAINTEXT
+  #           Value: !Ref PipelineArtifactBucket
+  #         - Name: HUGO_VERSION
+  #           Type: PLAINTEXT
+  #           Value: "0.55.4"
+  #         - Name: SITE_BUCKET
+  #           Type: PLAINTEXT
+  #           Value: !Ref ContentBucketName
+  #         - Name: HUGO_CONFIG
+  #           Type: PLAINTEXT
+  #           Value: config.toml
+  #     Source:
+  #       Type: CODEPIPELINE
+  #       BuildSpec: buildspec.yaml
+  #     LogsConfig:
+  #       CloudWatchLogs:
+  #         Status: ENABLED
+  #         GroupName: !Sub ${ApplicationName}-buildlogs
+  #         StreamName: ProdContentDeployment
+  #     TimeoutInMinutes: 10
+
+
+  # BuildLogsGroup:
+  #   Type: AWS::Logs::LogGroup
+  #   Properties:
+  #     LogGroupName: !Sub ${PipelineName}-buildlogs
+  #     RetentionInDays: 30
