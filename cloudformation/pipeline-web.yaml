@@ -129,6 +129,7 @@ Resources:
                 Effect: Allow
                 Resource:
                   - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/ewelists.com/staging/SSLCertificateId'
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/ewelists.com/prod/SSLCertificateId'
         - PolicyName: ManageStagingS3
           PolicyDocument:
             Version: '2012-10-17'
