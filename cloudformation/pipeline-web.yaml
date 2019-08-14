@@ -4,12 +4,13 @@ Parameters:
   PipelineName:
     Type: String
     Description: Name of application used to describe resources.
-    Default: web-pipeline
+    Default: web
     AllowedPattern: "^[-a-z0-9]*$"
     ConstraintDescription: Application name can include numbers, lowercase letters, and hyphens (-).
-  # GitReleaseNumber:
-  #   Type: String
-  #   Description: Current release number of the website content project
+  WebBucketName:
+    Type: String
+    Description: Name of the web s3 bucket.
+    Default: ewelists.com
   GitHubUser:
     Type: String
     Description: GitHub User
@@ -39,7 +40,7 @@ Resources:
   PipelineArtifactBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub '${PipelineName}-artifacts'
+      BucketName: !Sub '${PipelineName}-pipeline-artifacts'
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: True
@@ -52,13 +53,13 @@ Resources:
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
             ExpirationInDays: 180
-            Prefix: !Sub '${PipelineName}-artifacts*'
+            Prefix: !Sub '${PipelineName}-pipeline-artifacts*'
             Status: Enabled
 
   PipelineRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub '${PipelineName}-ServiceRole'
+      RoleName: !Sub '${PipelineName}-pipeline-ServiceRole'
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -95,7 +96,7 @@ Resources:
   WebStackCFNRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub '${PipelineName}-WebStack-CloudFormationRole'
+      RoleName: !Sub '${PipelineName}-pipeline-WebStack-CloudFormationRole'
       AssumeRolePolicyDocument:
         Statement:
         - Action: ['sts:AssumeRole']
@@ -215,59 +216,10 @@ Resources:
                 Resource:
                   - "*"
 
-# Project Role
-  # ContentBuildRole:
-  #   Type: AWS::IAM::Role
-  #   Properties:
-  #     RoleName: !Sub '${ApplicationName}-ContentBuildRole'
-  #     AssumeRolePolicyDocument:
-  #       Statement:
-  #       - Effect: Allow
-  #         Principal:
-  #           Service:
-  #           - codebuild.amazonaws.com
-  #         Action:
-  #         - sts:AssumeRole
-  #     Path: "/"
-  #     Policies:
-  #     - PolicyName: BuildServiceRolePolicy
-  #       PolicyDocument:
-  #         Statement:
-  #         - Effect: Allow
-  #           Action:
-  #             - logs:CreateLogGroup
-  #             - logs:CreateLogStream
-  #             - logs:PutLogEvents
-  #           Resource:
-  #             - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${ApplicationName}-buildlogs"
-  #             - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${ApplicationName}-buildlogs:*"
-  #         - Effect: Allow
-  #           Action:
-  #             - s3:PutObject
-  #             - s3:GetObject
-  #             - s3:GetObjectVersion
-  #             - s3:GetBucketAcl
-  #             - s3:GetBucketLocation
-  #           Resource:
-  #             - !Sub "arn:aws:s3:::${PipelineArtifactBucket}/*"
-  #         - Effect: Allow
-  #           Action:
-  #             - s3:DeleteObject
-  #             - s3:PutObject
-  #             - s3:GetObject
-  #             - s3:GetObjectVersion
-  #             - s3:ListBucket
-  #           Resource:
-  #             - !Sub "arn:aws:s3:::${ContentBucketName}/*"
-  #             - !Sub "arn:aws:s3:::${ContentBucketName}"
-  #             - !Sub "arn:aws:s3:::staging.${ContentBucketName}/*"
-  #             - !Sub "arn:aws:s3:::staging.${ContentBucketName}"
-  #         Version: '2012-10-17'
-
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
-      Name: !Ref PipelineName
+      Name: !Sub '${PipelineName}-pipeline'
       RoleArn: !GetAtt PipelineRole.Arn
       ArtifactStore:
         Type: S3
@@ -275,17 +227,31 @@ Resources:
       Stages:
         - Name: Source
           Actions:
-            - Name: TemplateSource
+            - Name: Templates
               ActionTypeId:
                 Category: Source
                 Owner: ThirdParty
                 Version: '1'
                 Provider: GitHub
               OutputArtifacts:
-              - Name: TemplateSource
+              - Name: TemplateAF
               Configuration:
                 Owner: !Ref GitHubUser
                 Repo: !Ref GitHubInfraRepo
+                Branch: !Ref GitHubBranch
+                OAuthToken: !Ref GitHubToken
+              RunOrder: 1
+            - Name: Content
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: '1'
+                Provider: GitHub
+              OutputArtifacts:
+              - Name: ContentAF
+              Configuration:
+                Owner: !Ref GitHubUser
+                Repo: !Ref GitHubContentRepo
                 Branch: !Ref GitHubBranch
                 OAuthToken: !Ref GitHubToken
               RunOrder: 1
@@ -298,25 +264,27 @@ Resources:
                 Provider: CloudFormation
                 Version: '1'
               InputArtifacts:
-                - Name: TemplateSource
+                - Name: TemplateAF
               Configuration:
                 ActionMode: CREATE_UPDATE
                 RoleArn: !GetAtt [WebStackCFNRole, Arn]
                 StackName: Web-Staging
-                TemplatePath: !Sub "TemplateSource::${WebTemplatePath}"
+                TemplatePath: !Sub "TemplateAF::${WebTemplatePath}"
                 ParameterOverrides: '{ "Environment": "staging" }'
               RunOrder: 1
-            # - Name: DeployContent
-            #   ActionTypeId:
-            #     Category: Build
-            #     Owner: AWS
-            #     Version: '1'
-            #     Provider: CodeBuild
-            #   InputArtifacts:
-            #   - Name: HugoSource
-            #   Configuration:
-            #     ProjectName: !Ref StagingContentCodeBuildProject
-            #   RunOrder: 2
+            - Name: ReactDeploy
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: '1'
+                Provider: CodeBuild
+              InputArtifacts:
+                - Name: ContentAF
+              OutputArtifacts:
+                - Name: ReactStag
+              Configuration:
+                ProjectName: !Ref StagingReactCodeBuildProject
+              RunOrder: 2
         - Name: Production
           Actions:
             - Name: CreateChangeSet
@@ -326,13 +294,13 @@ Resources:
                 Provider: CloudFormation
                 Version: '1'
               InputArtifacts:
-                - Name: TemplateSource
+                - Name: TemplateAF
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
                 RoleArn: !GetAtt [WebStackCFNRole, Arn]
                 StackName: Web-Prod
                 ChangeSetName: Web-Prod-ChangeSet
-                TemplatePath: !Sub "TemplateSource::${WebTemplatePath}"
+                TemplatePath: !Sub "TemplateAF::${WebTemplatePath}"
                 ParameterOverrides: '{ "Environment": "prod" }'
               RunOrder: 1
             - Name: ApproveChangeSet
@@ -354,96 +322,136 @@ Resources:
                 RoleArn: !GetAtt [WebStackCFNRole, Arn]
                 StackName: Web-Prod
               RunOrder: 3
+            - Name: ReactDeploy
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: '1'
+                Provider: CodeBuild
+              InputArtifacts:
+                - Name: ContentAF
+              OutputArtifacts:
+                - Name: ReactProd
+              Configuration:
+                ProjectName: !Ref ProdReactCodeBuildProject
+              RunOrder: 4
 
-  # StagingContentCodeBuildProject:
-  #   Type: AWS::CodeBuild::Project
-  #   DependsOn: BuildLogsGroup
-  #   Properties:
-  #     Name: !Sub ${ApplicationName}-Staging-DeploySite
-  #     Description: Performs static website deloyment tasks
-  #     ServiceRole: !GetAtt ContentBuildRole.Arn
-  #     Artifacts:
-  #       Type: CODEPIPELINE
-  #     Cache:
-  #       Type: LOCAL
-  #       Modes:
-  #       - LOCAL_DOCKER_LAYER_CACHE
-  #     Environment:
-  #       Type: LINUX_CONTAINER
-  #       ComputeType: BUILD_GENERAL1_SMALL
-  #       Image: aws/codebuild/standard:1.0
-  #       EnvironmentVariables:
-  #         - Name: BUILD_NUMBER
-  #           Type: PLAINTEXT
-  #           Value: !Ref GitReleaseNumber
-  #         - Name: BUILD_BUCKET
-  #           Type: PLAINTEXT
-  #           Value: !Ref PipelineArtifactBucket
-  #         - Name: HUGO_VERSION
-  #           Type: PLAINTEXT
-  #           Value: "0.55.4"
-  #         - Name: SITE_BUCKET
-  #           Type: PLAINTEXT
-  #           Value: !Sub staging.${ContentBucketName}
-  #         - Name: HUGO_CONFIG
-  #           Type: PLAINTEXT
-  #           Value: config.staging.toml
-  #     Source:
-  #       Type: CODEPIPELINE
-  #       BuildSpec: buildspec.yaml
-  #     LogsConfig:
-  #       CloudWatchLogs:
-  #         Status: ENABLED
-  #         GroupName: !Sub ${ApplicationName}-buildlogs
-  #         StreamName: StagingContentDeployment
-  #     TimeoutInMinutes: 10
-  #
-  # ProdContentCodeBuildProject:
-  #   Type: AWS::CodeBuild::Project
-  #   DependsOn: BuildLogsGroup
-  #   Properties:
-  #     Name: !Sub ${ApplicationName}-Prod-DeploySite
-  #     Description: Performs static website deloyment tasks
-  #     ServiceRole: !GetAtt ContentBuildRole.Arn
-  #     Artifacts:
-  #       Type: CODEPIPELINE
-  #     Cache:
-  #       Type: LOCAL
-  #       Modes:
-  #       - LOCAL_DOCKER_LAYER_CACHE
-  #     Environment:
-  #       Type: LINUX_CONTAINER
-  #       ComputeType: BUILD_GENERAL1_SMALL
-  #       Image: aws/codebuild/standard:1.0
-  #       EnvironmentVariables:
-  #         - Name: BUILD_NUMBER
-  #           Type: PLAINTEXT
-  #           Value: !Ref GitReleaseNumber
-  #         - Name: BUILD_BUCKET
-  #           Type: PLAINTEXT
-  #           Value: !Ref PipelineArtifactBucket
-  #         - Name: HUGO_VERSION
-  #           Type: PLAINTEXT
-  #           Value: "0.55.4"
-  #         - Name: SITE_BUCKET
-  #           Type: PLAINTEXT
-  #           Value: !Ref ContentBucketName
-  #         - Name: HUGO_CONFIG
-  #           Type: PLAINTEXT
-  #           Value: config.toml
-  #     Source:
-  #       Type: CODEPIPELINE
-  #       BuildSpec: buildspec.yaml
-  #     LogsConfig:
-  #       CloudWatchLogs:
-  #         Status: ENABLED
-  #         GroupName: !Sub ${ApplicationName}-buildlogs
-  #         StreamName: ProdContentDeployment
-  #     TimeoutInMinutes: 10
+  StagingReactCodeBuildProject:
+    Type: 'AWS::CodeBuild::Project'
+    Properties:
+      Name: !Sub ${PipelineName}-ReactBuild-Staging
+      Description: Builds react web application
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Type: LOCAL
+        Modes:
+        - LOCAL_DOCKER_LAYER_CACHE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: 'aws/codebuild/standard:2.0'
+        EnvironmentVariables:
+          - Name: WEB_BUCKET
+            Value: !Sub 'staging.${WebBucketName}'
+          - Name: ENVIRONMENT
+            Value: staging
+      ServiceRole: !GetAtt ReactBuildsRole.Arn
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec-react.yaml
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+          GroupName: !Sub ${PipelineName}-reactbuild-staging
+          StreamName: ReactBuild
 
+  StagingReactBuildLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub ${PipelineName}-reactbuild-staging
+      RetentionInDays: 30
 
-  # BuildLogsGroup:
-  #   Type: AWS::Logs::LogGroup
-  #   Properties:
-  #     LogGroupName: !Sub ${PipelineName}-buildlogs
-  #     RetentionInDays: 30
+  ProdReactCodeBuildProject:
+    Type: 'AWS::CodeBuild::Project'
+    Properties:
+      Name: !Sub ${PipelineName}-ReactBuild-Prod
+      Description: Builds react web application
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Type: LOCAL
+        Modes:
+        - LOCAL_DOCKER_LAYER_CACHE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: 'aws/codebuild/standard:2.0'
+        EnvironmentVariables:
+          - Name: WEB_BUCKET
+            Value: !Ref WebBucketName
+          - Name: ENVIRONMENT
+            Value: prod
+      ServiceRole: !GetAtt ReactBuildsRole.Arn
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec-react.yaml
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+          GroupName: !Sub ${PipelineName}-reactbuild-prod
+          StreamName: ReactBuild
+
+  ProdReactBuildLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub ${PipelineName}-reactbuild-prod
+      RetentionInDays: 30
+
+  ReactBuildsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${PipelineName}-ReactBuilds-Role'
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - codebuild.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: BuildServiceRolePolicy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource:
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-reactbuild-staging"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-reactbuild-staging:*"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-reactbuild-prod"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-reactbuild-prod:*"
+          - Effect: Allow
+            Action:
+              - s3:DeleteObject
+              - s3:PutObject
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:GetBucketVersioning
+              - s3:ListBucket
+            Resource:
+              - !Sub "arn:aws:s3:::${PipelineArtifactBucket}/*"
+              - !Sub "arn:aws:s3:::${WebBucketName}/*"
+              - !Sub "arn:aws:s3:::${WebBucketName}"
+              - !Sub "arn:aws:s3:::staging.${WebBucketName}/*"
+              - !Sub "arn:aws:s3:::staging.${WebBucketName}"
+          - Effect: Allow
+            Action:
+              - cloudfront:CreateInvalidation
+              - cloudfront:ListDistributions
+            Resource: '*'
+          Version: '2012-10-17'
