@@ -96,7 +96,7 @@ Resources:
   WebStackCFNRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub '${PipelineName}-pipeline-WebStack-CloudFormationRole'
+      RoleName: !Sub '${PipelineName}-pipeline-CloudFormationRole'
       AssumeRolePolicyDocument:
         Statement:
         - Action: ['sts:AssumeRole']

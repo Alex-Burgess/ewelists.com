@@ -1,0 +1,229 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Pipeline for deployment to s3 bucket with static website.
+Parameters:
+  PipelineName:
+    Type: String
+    Description: Name of application used to describe resources.
+    Default: healthchecks
+    AllowedPattern: "^[-a-z0-9]*$"
+    ConstraintDescription: Application name can include numbers, lowercase letters, and hyphens (-).
+  GitHubUser:
+    Type: String
+    Description: GitHub User
+    Default: Alex-Burgess
+  GitHubInfraRepo:
+    Type: String
+    Description: GitHub Repository Name
+    Default: ewelists.com
+  GitHubBranch:
+    Type: String
+    Description: GitHub Branch
+    Default: "master"
+  GitHubToken:
+    Type: String
+    NoEcho: true
+    Description: Personal Access Token.
+  TemplatePath:
+    Default: cloudformation/web-healthchecks.yaml
+    Description: The path of the Health checks stack template
+    Type: String
+  StagingCloudFrontId:
+    Description: The staging CloudFront Distribution ID
+    Type: String
+  ProdCloudFrontId:
+    Description: The staging CloudFront Distribution ID
+    Type: String
+
+Resources:
+  PipelineArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${PipelineName}-pipeline-artifacts'
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      LifecycleConfiguration:
+        Rules:
+          - Id: Build logs expiration
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+            ExpirationInDays: 180
+            Prefix: !Sub '${PipelineName}-pipeline-artifacts*'
+            Status: Enabled
+
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${PipelineName}-pipeline-ServiceRole'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: PipelineServiceRolePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - cloudformation:CreateStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DeleteStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:SetStackPolicy
+                  - iam:PassRole
+                  - sns:Publish
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                Resource: "*"
+
+  StackCFNRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${PipelineName}-pipeline-CloudFormationRole'
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: ['sts:AssumeRole']
+          Effect: Allow
+          Principal:
+            Service: [cloudformation.amazonaws.com]
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+        - PolicyName: ManageCloudFormation
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DeleteStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                Effect: Allow
+                Resource: '*'
+        - PolicyName: ManageRoute53
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - route53:*
+                Effect: Allow
+                Resource:
+                  - "*"
+        - PolicyName: ManageSNS
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - sns:*
+                Effect: Allow
+                Resource:
+                  - "*"
+        - PolicyName: ManageCloudwatchAlarms
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - cloudwatch:*
+                Effect: Allow
+                Resource:
+                  - "*"
+
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub '${PipelineName}-pipeline'
+      RoleArn: !GetAtt PipelineRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref PipelineArtifactBucket
+
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Templates
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: '1'
+                Provider: GitHub
+              OutputArtifacts:
+              - Name: TemplateAF
+              Configuration:
+                Owner: !Ref GitHubUser
+                Repo: !Ref GitHubInfraRepo
+                Branch: !Ref GitHubBranch
+                OAuthToken: !Ref GitHubToken
+              RunOrder: 1
+        - Name: Staging
+          Actions:
+            - Name: DeployWebStack
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              InputArtifacts:
+                - Name: TemplateAF
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                RoleArn: !GetAtt [StackCFNRole, Arn]
+                StackName: HealthChecks-Staging
+                TemplatePath: !Sub "TemplateAF::${TemplatePath}"
+                ParameterOverrides: !Sub '{"CloudFrontId": "${StagingCloudFrontId}", "Environment": "staging"}'
+              RunOrder: 1
+        - Name: Production
+          Actions:
+            - Name: CreateChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              InputArtifacts:
+                - Name: TemplateAF
+              Configuration:
+                ActionMode: CHANGE_SET_REPLACE
+                RoleArn: !GetAtt [StackCFNRole, Arn]
+                StackName: Web-Prod
+                ChangeSetName: Web-Prod-ChangeSet
+                TemplatePath: !Sub "TemplateAF::${TemplatePath}"
+                ParameterOverrides: !Sub '{"CloudFrontId": "${ProdCloudFrontId}", "Environment": "prod"}'
+              RunOrder: 1
+            - Name: ApproveChangeSet
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: '1'
+              RunOrder: 2
+            - Name: ExecuteChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: Web-Prod-ChangeSet
+                RoleArn: !GetAtt [StackCFNRole, Arn]
+                StackName: Web-Prod
+              RunOrder: 3

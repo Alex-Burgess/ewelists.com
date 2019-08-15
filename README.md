@@ -16,6 +16,7 @@ In the steps below, we create all the web components in one stack, except for th
 1. **Content:** Create a build of the content and copy to S3.
     ```
     npm run build
+    mv build/staging.robots.txt build/robots.txt
     aws s3 sync build/ s3://test.ewelists.com --delete
     ```
 1. **SSL Certificate:** Create SSL certificate. Stack will remain in CREATE_IN_PROGRESS state until the certificate is validated, so proceed to next step - see [acm docs](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-certificatemanager-certificate.html) for more details.
@@ -43,7 +44,9 @@ In the steps below, we create all the web components in one stack, except for th
 ## Deployments
 Github is the Single source of truth for our web stack and content deployments.  Whenever there is a commit/pull request to the Master branch of either the main or web github projects, this will trigger the pipeline.
 
-The pipeline doesn't include SSL certificate creation, although this could be automated in the future.  Therefore there is some setup required when creating the environments for the first time.  After this the pipeline is used for all changes.  
+The web pipeline doesn't include SSL certificate creation, although this could be automated in the future.  Therefore there is some setup required when creating the environments for the first time.  After this the pipeline is used for all changes.  
+
+The Health Checks pipeline needs to create resources in us-east-1, as that is where the cloudfront metrics are recorded.  After hit a brick wall with using cross-region stacks in the web-pipeline I decided to create a separate pipeline just for this stack.
 
 ### Setup Staging Environment
 1. **Web Stack:** Create Web stack with default SSL certificate.
@@ -87,7 +90,7 @@ As the hosted zone already exists for the production domain, we can skip creatin
      --value "f38ecd9a-...."
     ```
 
-### Create CI/CD Pipeline
+### Create Web CI/CD Pipeline
 1. **Personal Access Token:** In github developer settings, create a Personal access token, with repo and admin:repo_hook scopes.
 1. **Parameter Store:** Add github oauth key to parameter store.
     ```
@@ -101,13 +104,40 @@ As the hosted zone already exists for the production domain, we can skip creatin
      --parameters ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text`
     ```
 
-### Update Pipeline
+### Update Web Pipeline
 ```
 aws cloudformation update-stack --stack-name Pipeline-Web \
  --template-body file://pipeline-web.yaml \
  --capabilities CAPABILITY_NAMED_IAM \
  --parameters ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text`
 ```
+
+### Create Health Checks CI/CD Pipeline
+Note: It is assumed that the github personal access token was created in the Create Web Pipeline steps.
+
+1. **Pipeline Stack:** Create the stack, using the cli to import the oauth token from the parameter store.
+    ```
+    aws cloudformation create-stack --stack-name Pipeline-HealthChecks \
+     --region us-east-1 \
+     --template-body file://pipeline-healthchecks.yaml \
+     --capabilities CAPABILITY_NAMED_IAM \
+     --parameters ParameterKey=StagingCloudFrontId,ParameterValue=`aws cloudformation describe-stacks --stack-name Web-Staging --query 'Stacks[].Outputs[?OutputKey==`WebCloudFrontID`].OutputValue' --output text` \
+      ParameterKey=ProdCloudFrontId,ParameterValue=`aws cloudformation describe-stacks --stack-name Web-Prod --query 'Stacks[].Outputs[?OutputKey==`WebCloudFrontID`].OutputValue' --output text` \
+      ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text`
+    ```
+1. **Validate Subscriptions:** Validate the SNS subscriptions created, by clicking on link in the emails.
+
+### Update Health Checks Pipeline
+```
+aws cloudformation update-stack --stack-name Pipeline-HealthChecks \
+ --region us-east-1 \
+ --template-body file://pipeline-healthchecks.yaml \
+ --capabilities CAPABILITY_NAMED_IAM \
+ --parameters ParameterKey=StagingCloudFrontId,ParameterValue=`aws cloudformation describe-stacks --stack-name Web-Staging --query 'Stacks[].Outputs[?OutputKey==`WebCloudFrontID`].OutputValue' --output text` \
+  ParameterKey=ProdCloudFrontId,ParameterValue=`aws cloudformation describe-stacks --stack-name Web-Prod --query 'Stacks[].Outputs[?OutputKey==`WebCloudFrontID`].OutputValue' --output text` \
+  ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text`
+```
+
 
 ## Testing
 
@@ -122,9 +152,34 @@ aws cloudformation update-stack --stack-name Pipeline-Web \
 | Page missing | https://test.ewelists.com/nopage | 200 (404 shown in browser) |
 | S3 Request | curl -sI http://test.ewelists.com.s3-website-eu-west-1.amazonaws.com | 301 <br> Location: http://test.ewelists.com/ |
 | S3 Request to missing file | curl -sI http://test.ewelists.com.s3-website-eu-west-1.amazonaws.com/nopage | 301 <br> Location: http://test.ewelists.com/ |
+| Status Page | curl -sI https://test.ewelists.com/status.html | 200 |
 
+### Robots Files
+| Name | Command | Expected Result |
+| --- | --- | --- |
+| Test File | curl -sI https://test.ewelists.com/robots.txt | 200 <br> Disallow: / |
+| Staging File | curl -sI https://staging.ewelists.com/robots.txt | 200 <br> Disallow: / |
+| Prod File | curl -sI https://ewelists.com/robots.txt | 200 <br> Disallow: |
 
+## Monitoring
+Route53 Health Checks can be used to monitoring the availability of the website.  Combining this with CloudWatch Alarms and SNS, it is then possible to send emails when issues occur.  In addition to basic availability monitoring, we also monitor requests received by the CloudFront distribution.
 
+We want to monitor a page that has no cache, so that we alerted if there is an issue with underlying static website (i.e. on s3) a.s.a.p.  As files can be cached for days, there could be an issue and we wouldn't find out for hours, which would also be at the same time that users find out about the issue.  To facilitate this, we use a static html page with no cache.  For staging and production the buildspec file takes cache of copying this file with the correct no-cache metadata.
+
+### Creating Monitoring
+1. **CloudFront ID:** Get the Primary CloudFront Distribution ID
+    ```
+    aws cloudformation describe-stacks --stack-name Web-Test \
+     --query 'Stacks[].Outputs[?OutputKey==`WebCloudFrontID`].OutputValue' --output text
+    ```
+
+1. **Health Checks:** Create the health checks stack (us-east-1)
+    ```
+    aws cloudformation create-stack --region us-east-1 --stack-name Web-HealthChecks-Test --template-body file://web-healthchecks.yaml \
+     --parameters ParameterKey=Environment,ParameterValue=test \
+      ParameterKey=CloudFrontId,ParameterValue=12345678910
+    ```
+1. **Confirm Subscription:** An email requesting confirmation of the subscription for the email address will be sent.  Click on the link to confirm the subscription.
 
 # Reference
 ### AWS Cli Authentication
