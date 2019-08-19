@@ -1,0 +1,130 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Creates a static website using S3 for the Wild Rydes serverless web application workshop
+
+Parameters:
+  UserPoolName:
+    Type: String
+    Description: The name for the user pool
+    Default: Ewelists
+  Environment:
+    Description: Environment type.
+    Default: prod
+    Type: String
+    AllowedValues:
+      - prod
+      - staging
+      - dev
+      - test
+
+Conditions:
+  Prod: !Equals [ !Ref Environment, prod ]
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    DeletionPolicy: Retain
+    Properties:
+      UserPoolName: !If [Prod, !Ref UserPoolName, !Sub '${UserPoolName}-${Environment}']
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    DeletionPolicy: Retain
+    Properties:
+      ClientName: !Ref UserPoolName
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+
+  IdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders:
+        - ClientId: !Ref UserPoolClient
+          ProviderName: !Sub 'cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}'
+          ServerSideTokenCheck: false
+      IdentityPoolName: !If [Prod, !Ref UserPoolName, !Sub '${UserPoolName} ${Environment}']
+
+  IdentityPoolRoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId: !Ref IdentityPool
+      Roles:
+        unauthenticated: !GetAtt UnAuthRole.Arn
+        authenticated: !GetAtt AuthRole.Arn
+
+  AuthRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${UserPoolName}-${Environment}-CognitoAuthRole'
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Federated:
+            - cognito-identity.amazonaws.com
+          Action:
+          - sts:AssumeRoleWithWebIdentity
+          Condition:
+            StringEquals:
+              cognito-identity.amazonaws.com:aud: !Ref IdentityPool
+            ForAnyValue:StringLike:
+              cognito-identity.amazonaws.com:amr: "authenticated"
+      Path: "/"
+      Policies:
+      - PolicyName: CognitoAuthRolePolicy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - mobileanalytics:PutEvents
+              - cognito-sync:*
+              - cognito-identity:*
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - execute-api:Invoke
+            Resource: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*/*/*/*'
+          Version: '2012-10-17'
+
+  UnAuthRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${UserPoolName}-${Environment}-CognitoUnAuthRole'
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Federated:
+            - cognito-identity.amazonaws.com
+          Action:
+          - sts:AssumeRoleWithWebIdentity
+          Condition:
+            StringEquals:
+              cognito-identity.amazonaws.com:aud: !Ref IdentityPool
+            ForAnyValue:StringLike:
+              cognito-identity.amazonaws.com:amr: "unauthenticated"
+      Path: "/"
+      Policies:
+      - PolicyName: CognitoAuthRolePolicy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - mobileanalytics:PutEvents
+              - cognito-sync:*
+            Resource: "*"
+          Version: '2012-10-17'
+
+Outputs:
+  userPoolId:
+    Value: !Ref UserPool
+
+  userPoolClientId:
+    Value: !Ref UserPoolClient
+
+  identityPoolId:
+    Value: !Ref IdentityPool
