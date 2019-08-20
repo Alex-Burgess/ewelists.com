@@ -73,6 +73,7 @@ Useful AWS documentation: [Adding Social Identity Providers to a User Pool](http
   1. Update app ID, secret and scope in Identity providers.
 1. Enable all Identity Providers in App Client Settings and select Allowed OAuth Flows and Scopes (console).
 1. Update Attribute mappings for the email attribute for each identity provider.
+1. Add the configuration to the config.js file in the React Web App.
 
 ## Deployments
 Github is the Single source of truth for our web stack and content deployments.  Whenever there is a commit/pull request to the Master branch of either the main or web github projects, this will trigger the pipeline.
@@ -194,6 +195,26 @@ aws cloudformation update-stack --stack-name Pipeline-HealthChecks \
 | Staging File | curl -sI https://staging.ewelists.com/robots.txt | 200 <br> Disallow: / |
 | Prod File | curl -sI https://ewelists.com/robots.txt | 200 <br> Disallow: |
 
+### Signup And Login Flows
+| File | Test Details | Expected Result |
+| --- | --- | --- |
+| Sign up - links | Click on Terms and Conditions Link | Terms and Conditions page shown in new tab. |
+| Sign up - links | Click on Privacy Policy Link | Privacy Policy page shown in new tab. |
+| Sign up | Enter name, Username and Password | Confirmation code page shown.<br> Email with code sent. |
+| Sign up - confirmation page | Enter confirmation code | Sign up complete, redirected to dashboard |
+| Sign up - amazon | Click amazon icon.<br> Get login to amazon page.<br> Enter password and complete process. | "Ewelists would like to access to: Profile" message show.<br> Link to privacy policy on Allow decision page.<br>Login complete and redirected to dashboard. |
+| Sign up - google | Click google icon.<br> Get login to google page.<br> Enter password and complete process. | Login page should have logo as well as working link to privacy policy and terms of service.<br>Login complete and redirected to dashboard. |
+| Sign up - facebook | Click facebook icon.<br> Get login to facebook page.<br> Enter password and complete process. | After login see "Ewelists will receive..." message.<br> After "Continue as ..." login completed and redirected to dashboard page. |
+| Login - links | Click on Terms and Conditions Link | Terms and Conditions page shown in new tab. |
+| Login - links | Click on Privacy Policy Link | Privacy Policy page shown in new tab. |
+| Login | Enter name, Username and Password | Login and redirected to dashboard |
+| Login - amazon | Click amazon icon.<br> Get login to amazon page.<br> Enter password and complete process. | "Ewelists would like to access to: Profile" message show.<br> Link to privacy policy on Allow decision page.<br>Login complete and redirected to dashboard. |
+| Login - google | Click google icon.<br> Get login to google page.<br> Enter password and complete process. | Login page should have logo as well as working link to privacy policy and terms of service.<br>Login complete and redirected to dashboard. |
+| Login - facebook | Click facebook icon.<br> Get login to facebook page.<br> Enter password and complete process. | After login see "Ewelists will receive..." message.<br> After "Continue as ..." login completed and redirected to dashboard page. |
+| Sign out - amazon | Click sign out link | Get redirected to login page |
+| Sign out - google | Click sign out link | Get redirected to login page |
+| Sign out - facebook | Click sign out link | Get redirected to login page |
+
 ## Monitoring
 Route53 Health Checks can be used to monitoring the availability of the website.  Combining this with CloudWatch Alarms and SNS, it is then possible to send emails when issues occur.  In addition to basic availability monitoring, we also monitor requests received by the CloudFront distribution.
 
@@ -250,4 +271,13 @@ aws cloudfront create-invalidation --distribution-id EPHRMSYQN7X62 --invalidatio
 Check status of invalidation:
 ```
 aws cloudfront get-invalidation --distribution-id ABCDEFGHIJK12 --id ABCDEFG1234567 --query 'Invalidation.Status'
+```
+
+### React
+```
+REACT_APP_STAGE=test npm start
+REACT_APP_STAGE=test npm run build
+aws s3 sync build/ s3://test.ewelists.com --delete
+aws cloudfront list-distributions --query "DistributionList.Items[?AliasICPRecordals[?CNAME=='test.ewelists.com']].{ID:Id}" --output text
+aws cloudfront create-invalidation --paths '/*' --distribution-id ABCDEFGHIJK12
 ```
