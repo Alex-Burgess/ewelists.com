@@ -280,4 +280,5 @@ REACT_APP_STAGE=test npm run build
 aws s3 sync build/ s3://test.ewelists.com --delete
 aws cloudfront list-distributions --query "DistributionList.Items[?AliasICPRecordals[?CNAME=='test.ewelists.com']].{ID:Id}" --output text
 aws cloudfront create-invalidation --paths '/*' --distribution-id ABCDEFGHIJK12
+aws cloudfront wait invalidation-completed --distribution-id ABCDEFGHIJK12 --id IJKLMNOPQRSTUV
 ```
