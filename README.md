@@ -215,6 +215,34 @@ aws cloudformation update-stack --stack-name Pipeline-HealthChecks \
 | Sign out - google | Click sign out link | Get redirected to login page |
 | Sign out - facebook | Click sign out link | Get redirected to login page |
 
+
+Sign up Form Validation:
+
+| File | Test Details | Expected Result |
+| --- | --- | --- |
+| Sign up - Validation | No name, or valid email or password > 5 | Form cannot be submitted |
+| Sign up - Validation | Email already exists | An account with the given email already exists. |
+| Sign up - Validation | Bad password | Password did not conform with policy: Password not long enough |
+| Confirmation page - Validation | Bad confirmation code | Invalid verification code provided, please try again. |
+
+Login Page Form Validation:
+
+| File | Test Details | Expected Result |
+| --- | --- | --- |
+| Login - Validation | No valid email or password > 5 | Form cannot be submitted |
+| Login - Validation | Incorrect email | User does not exist |
+| Login - Validation | Incorrect password | Incorrect username or password. |
+
+Reset Page Form Validation:
+
+| File | Test Details | Expected Result |
+| --- | --- | --- |
+| Request - Validation | No valid email | Form cannot be submitted |
+| Request - Validation | Email does not exist | User does not exist |
+| Reset  - Validation | No confirmation code, no password, no confirmation password and password and confirmation password don't match | Form cannot be submitted |
+| Reset - Validation | Bad confirmation code, or bad password syntax | Appropriate Error message |
+| Success - Complete | Success | Success message with link to log in. |
+
 ## Monitoring
 Route53 Health Checks can be used to monitoring the availability of the website.  Combining this with CloudWatch Alarms and SNS, it is then possible to send emails when issues occur.  In addition to basic availability monitoring, we also monitor requests received by the CloudFront distribution.
 
