@@ -33,4 +33,4 @@ In the steps below, we create all the web components in one stack, except for th
     aws cloudformation update-stack --stack-name Web-Test --template-body file://web.yaml \
       --parameters ParameterKey=Environment,ParameterValue=test
     ```
-1. **Testing:** See [Initial Web Setup Tests](#initial-web-setup-tests) for quick curl tests.
+1. **Testing:** See [Initial Web Setup Tests](testing.md#initial-web-setup-tests) for quick curl tests.
