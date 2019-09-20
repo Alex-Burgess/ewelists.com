@@ -263,8 +263,8 @@ Devices (Portrait and Landscape):
 | --- | --- |
 | Landing Page | &#9744; |
 | Login | &#9744; |
-| Sign Up | Main: &#9744; Validation: &#9744; Confirmation: &#9744; |
-| Reset Password | Main &#9744; <br> Validation &#9744; Success &#9744;  |
+| Sign Up | Main: &#9744; <br> Validation: &#9744; <br> Confirmation: &#9744; |
+| Reset Password | Main: &#9744; <br> Validation: &#9744; <br> Success: &#9744;  |
 | Contact Us | &#9744; |
 | Error | &#9744; |
 | Terms | &#9744; |
