@@ -261,7 +261,7 @@ Devices (Portrait and Landscape):
 
 | Page | Checked |
 | --- | --- |
-| Landing Page | [ ] |
+| Landing Page | &#9744; |
 | Login | [ ] |
 | Contact Us | [ ] |
 
