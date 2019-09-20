@@ -261,9 +261,9 @@ Devices (Portrait and Landscape):
 
 | Page | Checked |
 | --- | --- |
-| Landing Page | [] |
-| Login | [] |
-| Contact Us | [] |
+| Landing Page | [ ] |
+| Login | [ ] |
+| Contact Us | [ ] |
 
 ## Monitoring
 Route53 Health Checks can be used to monitoring the availability of the website.  Combining this with CloudWatch Alarms and SNS, it is then possible to send emails when issues occur.  In addition to basic availability monitoring, we also monitor requests received by the CloudFront distribution.
