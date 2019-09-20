@@ -243,6 +243,28 @@ Reset Page Form Validation:
 | Reset - Validation | Bad confirmation code, or bad password syntax | Appropriate Error message |
 | Success - Complete | Success | Success message with link to log in. |
 
+### Display on Device Checklist
+
+Browsers (versions?):
+* Chrome
+* Safari
+* Firefox
+* IE
+
+Devices (Portrait and Landscape):
+* iPad Pro 12"
+* iPad Pro 10"
+* iPad
+* iPhone 10
+* iPhone Plus sizes
+* iPhone 5/6/7/8
+
+| Page | Checked |
+| --- | --- |
+| Landing Page | [] |
+| Login | [] |
+| Contact Us | [] |
+
 ## Monitoring
 Route53 Health Checks can be used to monitoring the availability of the website.  Combining this with CloudWatch Alarms and SNS, it is then possible to send emails when issues occur.  In addition to basic availability monitoring, we also monitor requests received by the CloudFront distribution.
 
@@ -262,6 +284,14 @@ We want to monitor a page that has no cache, so that we alerted if there is an i
       ParameterKey=CloudFrontId,ParameterValue=12345678910
     ```
 1. **Confirm Subscription:** An email requesting confirmation of the subscription for the email address will be sent.  Click on the link to confirm the subscription.
+
+
+## Email
+Email is manually configured using AWS Workmail.  Note, when creating a user, ensure that the domain selected is the right one.
+
+Email address: contact@ewelists.com
+Web Email client: https://ewelists.awsapps.com/mail
+
 
 # Reference
 ### AWS Cli Authentication
