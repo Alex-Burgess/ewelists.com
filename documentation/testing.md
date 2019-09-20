@@ -1,6 +1,6 @@
-## Testing
+# Testing
 
-### Initial Web Setup Tests
+## Initial Web Setup Tests
 
 | Name | Command | Expected Result |
 | --- | --- | --- |
@@ -13,14 +13,14 @@
 | S3 Request to missing file | curl -sI http://test.ewelists.com.s3-website-eu-west-1.amazonaws.com/nopage | 301 <br> Location: http://test.ewelists.com/ |
 | Status Page | curl -sI https://test.ewelists.com/status.html | 200 |
 
-### Robots Files
+## Robots Files
 | Name | Command | Expected Result |
 | --- | --- | --- |
 | Test File | curl -sI https://test.ewelists.com/robots.txt | 200 <br> Disallow: / |
 | Staging File | curl -sI https://staging.ewelists.com/robots.txt | 200 <br> Disallow: / |
 | Prod File | curl -sI https://ewelists.com/robots.txt | 200 <br> Disallow: |
 
-### Signup And Login Flows
+## Signup And Login Flows
 | File | Test Details | Expected Result |
 | --- | --- | --- |
 | Sign up - links | Click on Terms and Conditions Link | Terms and Conditions page shown in new tab. |
@@ -68,7 +68,7 @@ Reset Page Form Validation:
 | Reset - Validation | Bad confirmation code, or bad password syntax | Appropriate Error message |
 | Success - Complete | Success | Success message with link to log in. |
 
-### Display on Device Checklist
+## Display on Device Checklist
 
 Browsers (versions?):
 * Chrome

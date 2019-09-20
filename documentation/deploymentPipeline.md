@@ -1,11 +1,11 @@
-## Deployments
+# Deployments
 Github is the Single source of truth for our web stack and content deployments.  Whenever there is a commit/pull request to the Master branch of either the main or web github projects, this will trigger the pipeline.
 
 The web pipeline doesn't include SSL certificate creation, although this could be automated in the future.  Therefore there is some setup required when creating the environments for the first time.  After this the pipeline is used for all changes.  
 
 The Health Checks pipeline needs to create resources in us-east-1, as that is where the cloudfront metrics are recorded.  After hit a brick wall with using cross-region stacks in the web-pipeline I decided to create a separate pipeline just for this stack.
 
-### Setup Staging Environment
+## Setup Staging Environment
 1. **Web Stack:** Create Web stack with default SSL certificate.
     ```
     aws cloudformation create-stack --stack-name Web-Staging --template-body file://web.yaml \
@@ -28,7 +28,7 @@ The Health Checks pipeline needs to create resources in us-east-1, as that is wh
      --value "f38ecd9a-...."
     ```
 
-### Setup Production Environment
+## Setup Production Environment
 As the hosted zone already exists for the production domain, we can skip creating the stack and go straight to creating the SSL certificate.
 
 1. **SSL Certificate:** Create SSL certificate. Stack will remain in CREATE_IN_PROGRESS state until the certificate is validated, so proceed to next step - see [acm docs](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-certificatemanager-certificate.html) for more details.
@@ -47,7 +47,7 @@ As the hosted zone already exists for the production domain, we can skip creatin
      --value "f38ecd9a-...."
     ```
 
-### Create Web CI/CD Pipeline
+## Create Web CI/CD Pipeline
 1. **Personal Access Token:** In github developer settings, create a Personal access token, with repo and admin:repo_hook scopes.
 1. **Parameter Store:** Add github oauth key to parameter store.
     ```
@@ -61,7 +61,7 @@ As the hosted zone already exists for the production domain, we can skip creatin
      --parameters ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text`
     ```
 
-### Update Web Pipeline
+## Update Web Pipeline
 ```
 aws cloudformation update-stack --stack-name Pipeline-Web \
  --template-body file://pipeline-web.yaml \
@@ -69,7 +69,7 @@ aws cloudformation update-stack --stack-name Pipeline-Web \
  --parameters ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text`
 ```
 
-### Create Health Checks CI/CD Pipeline
+## Create Health Checks CI/CD Pipeline
 Note: It is assumed that the github personal access token was created in the Create Web Pipeline steps.
 
 1. **Pipeline Stack:** Create the stack, using the cli to import the oauth token from the parameter store.
@@ -84,7 +84,7 @@ Note: It is assumed that the github personal access token was created in the Cre
     ```
 1. **Validate Subscriptions:** Validate the SNS subscriptions created, by clicking on link in the emails.
 
-### Update Health Checks Pipeline
+## Update Health Checks Pipeline
 ```
 aws cloudformation update-stack --stack-name Pipeline-HealthChecks \
  --region us-east-1 \
