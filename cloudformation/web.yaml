@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Creates the services to build the website, including S3, CloudFront, Route53 record sets, etc.
+Description: Creates main resources to build the website, including S3, CloudFront, Route53 record sets, dynamodb tables, etc.
 Parameters:
   DomainName:
     Description: Domain name for your website (example.com)
@@ -394,6 +394,23 @@ Resources:
         AliasTarget:
           HostedZoneId: Z2FDTNDATAQYW2
           DNSName: !GetAtt [WwwCoUkDistribution, DomainName]
+
+  ListsTable:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: !Sub "lists-${Environment}"
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: listId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: listId
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+
 
 Outputs:
   WebCloudFrontUrl:
