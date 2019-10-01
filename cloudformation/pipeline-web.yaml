@@ -215,6 +215,23 @@ Resources:
                 Effect: Allow
                 Resource:
                   - "*"
+        - PolicyName: ManageDynamoDB
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - dynamodb:DescribeTable
+                  - dynamodb:CreateTable
+                  - dynamodb:DeleteTable
+                Effect: Allow
+                Resource:
+                  - "arn:aws:dynamodb:*:*:table/*"
+              - Action:
+                  - dynamodb:ListTables
+                Effect: Allow
+                Resource:
+                  - "*"
+
 
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
