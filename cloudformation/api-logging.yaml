@@ -5,7 +5,7 @@ Parameters:
   RoleName:
     Description: API Gateway Cloudwatch log role name
     Type: String
-    Default: sudokuless-api-cloudwatch-role
+    Default: ewelists-api-cloudwatch-role
 
 Resources:
   ApiRole:
