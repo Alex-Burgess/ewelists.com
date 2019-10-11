@@ -53,6 +53,17 @@ As the hosted zone already exists for the production domain, we can skip creatin
     ```
     aws ssm put-parameter --name "/ewelists.com/github" --value "123456abcde...." --type SecureString
     ```
+1. Add Postman API Key to Parameter store:
+    ```
+    aws ssm put-parameter --name /Postman/Key --type SecureString --value "PMAK-5da0....???"
+    ```
+1. Add Postman Collection and Environment IDs to parameter store (See [Postman](#Postman) reference commands for retrieving IDs.):
+    ```
+    aws ssm put-parameter --name /Postman/Lists/Staging/CollectionId --type String --value "6596444-38afc6ee-????"
+    aws ssm put-parameter --name /Postman/Lists/Staging/EnvironmentId --type String --value "6596444-ea7ff6c9-??????"
+    aws ssm put-parameter --name /Postman/Lists/Prod/CollectionId --type String --value "6596444-38afc6ee-????"
+    aws ssm put-parameter --name /Postman/Lists/Prod/EnvironmentId --type String --value "6596444-ea7ff6c9-??????"
+    ```
 1. **Pipeline Stack:** Create the stack, using the cli to import the oauth token from the parameter store.
     ```
     aws cloudformation create-stack --stack-name Pipeline-Web \
@@ -93,4 +104,31 @@ aws cloudformation update-stack --stack-name Pipeline-HealthChecks \
  --parameters ParameterKey=StagingCloudFrontId,ParameterValue=`aws cloudformation describe-stacks --stack-name Web-Staging --query 'Stacks[].Outputs[?OutputKey==`WebCloudFrontID`].OutputValue' --output text` \
   ParameterKey=ProdCloudFrontId,ParameterValue=`aws cloudformation describe-stacks --stack-name Web-Prod --query 'Stacks[].Outputs[?OutputKey==`WebCloudFrontID`].OutputValue' --output text` \
   ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text`
+```
+
+# Reference
+### Postman
+Set a local environment variable for the Postman API key:
+```
+export POSTMAN=??????
+```
+
+To find your collection uid:
+```
+curl https://api.getpostman.com/collections?apikey=$POSTMAN
+```
+
+To find your environment uid:
+```
+curl https://api.getpostman.com/environments?apikey=$POSTMAN
+```
+
+Install Newman:
+```
+npm i newman -g;
+```
+
+Test a collection:
+```
+newman run https://api.getpostman.com/collections/<Collection UID>?apikey=$POSTMAN --environment https://api.getpostman.com/environments/<Environment UID>?apikey=$POSTMAN
 ```

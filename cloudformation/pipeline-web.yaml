@@ -19,6 +19,10 @@ Parameters:
     Type: String
     Description: GitHub Repository Name
     Default: ewelists.com
+  GitHubServicesRepo:
+    Type: String
+    Description: GitHub Repository Name
+    Default: ewelists.com-services
   GitHubContentRepo:
     Type: String
     Description: GitHub Repository Name
@@ -189,6 +193,18 @@ Resources:
                   - "arn:aws:s3:::www.ewelists.co.uk/*"
                   - "arn:aws:s3:::ewelists.com-logging"
                   - "arn:aws:s3:::ewelists.com-logging/*"
+        - PolicyName: ManagePiplineArtifactsBucket
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - s3:GetObject
+                  - s3:CreateBucket
+                  - s3:DeleteBucket
+                  - s3:PutBucketPublicAccessBlock
+                Effect: Allow
+                Resource:
+                  - "arn:aws:s3:::web-pipeline-artifacts/*"
         - PolicyName: ManageRoute53
           PolicyDocument:
             Version: '2012-10-17'
@@ -231,7 +247,37 @@ Resources:
                 Effect: Allow
                 Resource:
                   - "*"
-
+        - PolicyName: ManageIam
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - iam:ListRoles
+                  - iam:ListPolicies
+                  - iam:GetRole
+                  - iam:GetPolicy
+                  - iam:CreateRole
+                  - iam:CreatePolicy
+                  - iam:DeleteRole
+                  - iam:DeletePolicy
+                  - iam:UpdateRole
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:PassRole
+                  - iam:PutRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:getRolePolicy
+                Effect: Allow
+                Resource: '*'
+        - PolicyName: ManageServerless
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - lambda:*
+                  - apigateway:*
+                Effect: Allow
+                Resource: '*'
 
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
@@ -244,7 +290,7 @@ Resources:
       Stages:
         - Name: Source
           Actions:
-            - Name: Templates
+            - Name: InfraTemplates
               ActionTypeId:
                 Category: Source
                 Owner: ThirdParty
@@ -272,6 +318,44 @@ Resources:
                 Branch: !Ref GitHubBranch
                 OAuthToken: !Ref GitHubToken
               RunOrder: 1
+            - Name: ApiServices
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: '1'
+                Provider: GitHub
+              OutputArtifacts:
+              - Name: ServiceAF
+              Configuration:
+                Owner: !Ref GitHubUser
+                Repo: !Ref GitHubServicesRepo
+                Branch: !Ref GitHubBranch
+                OAuthToken: !Ref GitHubToken
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: CodeBuild
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName: !Ref SamBuildsCodeBuildProject
+              InputArtifacts:
+                - Name: ServiceAF
+              OutputArtifacts:
+                - Name: SamBuildAF
+            - Name: UnitTests
+              ActionTypeId:
+                Category: Test
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName: !Ref UnitTestsCodeBuildProject
+              InputArtifacts:
+                - Name: ServiceAF
         - Name: Staging
           Actions:
             - Name: DeployStack
@@ -289,6 +373,33 @@ Resources:
                 TemplatePath: !Sub "TemplateAF::${WebTemplatePath}"
                 ParameterOverrides: '{ "Environment": "staging" }'
               RunOrder: 1
+            - Name: DeployListsApi
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              InputArtifacts:
+                - Name: SamBuildAF
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                RoleArn: !GetAtt WebStackCFNRole.Arn
+                StackName: Service-Lists-Staging
+                TemplatePath: SamBuildAF::lists-packaged.yaml
+                Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+                ParameterOverrides: '{ "Environment": "staging" }'
+              RunOrder: 1
+            - Name: PostmanTests
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: '1'
+                Provider: CodeBuild
+              InputArtifacts:
+                - Name: ServiceAF
+              Configuration:
+                ProjectName: !Sub ${PipelineName}-Postman-Staging
+              RunOrder: 2
             - Name: ReactDeploy
               ActionTypeId:
                 Category: Build
@@ -301,7 +412,7 @@ Resources:
                 - Name: ReactStag
               Configuration:
                 ProjectName: !Ref StagingReactCodeBuildProject
-              RunOrder: 2
+              RunOrder: 3
         - Name: Production
           Actions:
             - Name: CreateChangeSet
@@ -352,6 +463,94 @@ Resources:
               Configuration:
                 ProjectName: !Ref ProdReactCodeBuildProject
               RunOrder: 4
+
+  SamBuildsCodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    DependsOn: SamBuildLogsGroup
+    Properties:
+      Name: !Sub ${PipelineName}-Serverless-Builds
+      Description: Builds SAM Serverless Applications
+      ServiceRole: !GetAtt SamBuildsRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Type: LOCAL
+        Modes:
+        - LOCAL_DOCKER_LAYER_CACHE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:1.0
+        EnvironmentVariables:
+          - Name: BUILD_OUTPUT_BUCKET
+            Value: !Ref PipelineArtifactBucket
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec.yaml
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+          GroupName: !Sub ${PipelineName}-sambuildlogs
+          StreamName: ListsSamBuilds
+      TimeoutInMinutes: 10
+
+  UnitTestsCodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    DependsOn: UnitTestsLogsGroup
+    Properties:
+      Name: !Sub ${PipelineName}-UnitTests
+      Description: Performs the unit testing of the lambda functions.
+      ServiceRole: !GetAtt SamBuildsRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Type: LOCAL
+        Modes:
+        - LOCAL_DOCKER_LAYER_CACHE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:1.0
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec-unittests.yaml
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+          GroupName: !Sub ${PipelineName}-unittestlogs
+          StreamName: UnitTests
+      TimeoutInMinutes: 10
+
+  StagingPostmanCodeBuildProject:
+    DependsOn: StagingPostmanBuildLogsGroup
+    Type: 'AWS::CodeBuild::Project'
+    Properties:
+      Name: !Sub ${PipelineName}-Postman-Staging
+      Description: Performs integration testing via Postman API.
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Type: LOCAL
+        Modes:
+        - LOCAL_DOCKER_LAYER_CACHE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: 'aws/codebuild/standard:2.0'
+        EnvironmentVariables:
+          - Name: COLLECTION_ID
+            Value: '{{resolve:ssm:/Postman/Lists/Staging/CollectionId:1}}'
+          - Name: ENVIRONMENT_ID
+            Value: '{{resolve:ssm:/Postman/Lists/Staging/EnvironmentId:1}}'
+      ServiceRole: !GetAtt PostmanBuildsRole.Arn
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec-postman.yaml
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+          GroupName: !Sub ${PipelineName}-postman-staging
+          StreamName: ReactBuild
 
   StagingReactCodeBuildProject:
     Type: 'AWS::CodeBuild::Project'
@@ -419,11 +618,111 @@ Resources:
           GroupName: !Sub ${PipelineName}-reactbuild-prod
           StreamName: ReactBuild
 
+  SamBuildLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub ${PipelineName}-sambuildlogs
+      RetentionInDays: 30
+
+  UnitTestsLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub ${PipelineName}-unittestlogs
+      RetentionInDays: 30
+
+  StagingPostmanBuildLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub ${PipelineName}-postman-staging
+      RetentionInDays: 30
+
   ProdReactBuildLogsGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub ${PipelineName}-reactbuild-prod
       RetentionInDays: 30
+
+  SamBuildsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${PipelineName}-SamBuildsRole'
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - codebuild.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: BuildServiceRolePolicy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource:
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-sambuildlogs"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-sambuildlogs:*"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-unittestlogs"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-unittestlogs:*"
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:GetBucketAcl
+              - s3:GetBucketLocation
+            Resource:
+              - !Sub "arn:aws:s3:::${PipelineArtifactBucket}/*"
+          Version: '2012-10-17'
+
+  PostmanBuildsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${PipelineName}-PostmanTestsRole'
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - codebuild.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: BuildServiceRolePolicy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource:
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-postman-staging"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-postman-staging:*"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-postman-prod"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-postman-prod:*"
+          - Effect: Allow
+            Action:
+              - s3:DeleteObject
+              - s3:PutObject
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:GetBucketVersioning
+              - s3:ListBucket
+            Resource:
+              - !Sub "arn:aws:s3:::${PipelineArtifactBucket}/*"
+          - Effect: Allow
+            Action:
+              - ssm:GetParameters
+            Resource:
+              - "*"
+          Version: '2012-10-17'
 
   ReactBuildsRole:
     Type: AWS::IAM::Role
