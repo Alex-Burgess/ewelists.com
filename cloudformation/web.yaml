@@ -398,7 +398,7 @@ Resources:
   ListsTable:
     Type: 'AWS::DynamoDB::Table'
     Properties:
-      TableName: !Sub "lists-${Environment}-New"
+      TableName: !Sub "lists-${Environment}"
       AttributeDefinitions:
         - AttributeName: PK
           AttributeType: S

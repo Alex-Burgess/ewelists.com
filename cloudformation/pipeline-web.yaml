@@ -389,17 +389,17 @@ Resources:
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
                 ParameterOverrides: '{ "Environment": "staging" }'
               RunOrder: 1
-            - Name: PostmanTests
-              ActionTypeId:
-                Category: Build
-                Owner: AWS
-                Version: '1'
-                Provider: CodeBuild
-              InputArtifacts:
-                - Name: ServiceAF
-              Configuration:
-                ProjectName: !Sub ${PipelineName}-Postman-Staging
-              RunOrder: 2
+            # - Name: PostmanTests
+            #   ActionTypeId:
+            #     Category: Build
+            #     Owner: AWS
+            #     Version: '1'
+            #     Provider: CodeBuild
+            #   InputArtifacts:
+            #     - Name: ServiceAF
+            #   Configuration:
+            #     ProjectName: !Sub ${PipelineName}-Postman-Staging
+            #   RunOrder: 2
             - Name: ReactDeploy
               ActionTypeId:
                 Category: Build
