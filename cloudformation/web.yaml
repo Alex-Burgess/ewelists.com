@@ -395,10 +395,10 @@ Resources:
           HostedZoneId: Z2FDTNDATAQYW2
           DNSName: !GetAtt [WwwCoUkDistribution, DomainName]
 
-  ListsTable2:
+  ListsTable:
     Type: 'AWS::DynamoDB::Table'
     Properties:
-      TableName: !Sub "lists-${Environment}"
+      TableName: !Sub "lists-${Environment}-New"
       AttributeDefinitions:
         - AttributeName: PK
           AttributeType: S
