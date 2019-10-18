@@ -395,21 +395,32 @@ Resources:
           HostedZoneId: Z2FDTNDATAQYW2
           DNSName: !GetAtt [WwwCoUkDistribution, DomainName]
 
-  ListsTable:
+  ListsTable2:
     Type: 'AWS::DynamoDB::Table'
     Properties:
       TableName: !Sub "lists-${Environment}"
       AttributeDefinitions:
-        - AttributeName: userId
+        - AttributeName: PK
           AttributeType: S
-        - AttributeName: listId
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: userId
           AttributeType: S
       KeySchema:
-        - AttributeName: userId
+        - AttributeName: PK
           KeyType: HASH
-        - AttributeName: listId
+        - AttributeName: SK
           KeyType: RANGE
       BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: userId-index
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+            - AttributeName: PK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
 
 
 Outputs:
