@@ -398,7 +398,8 @@ Resources:
               InputArtifacts:
                 - Name: ServiceAF
               Configuration:
-                ProjectName: !Sub ${PipelineName}-Postman-Staging
+                ProjectName: !Sub ${PipelineName}-Postman
+                EnvironmentVariables: '[{"name":"ENVIRONMENT_ID","value":"/Postman/Lists/Staging/EnvironmentId","type":"PARAMETER_STORE"},{"name":"COLLECTION_ID","value":"/Postman/Lists/CollectionId","type":"PARAMETER_STORE"}]'
               RunOrder: 2
             - Name: ReactDeploy
               ActionTypeId:
@@ -521,11 +522,11 @@ Resources:
           StreamName: UnitTests
       TimeoutInMinutes: 10
 
-  StagingPostmanCodeBuildProject:
-    DependsOn: StagingPostmanBuildLogsGroup
+  PostmanCodeBuildProject:
+    DependsOn: PostmanBuildLogsGroup
     Type: 'AWS::CodeBuild::Project'
     Properties:
-      Name: !Sub ${PipelineName}-Postman-Staging
+      Name: !Sub ${PipelineName}-Postman
       Description: Performs integration testing via Postman API.
       Artifacts:
         Type: CODEPIPELINE
@@ -537,11 +538,6 @@ Resources:
         Type: LINUX_CONTAINER
         ComputeType: BUILD_GENERAL1_SMALL
         Image: 'aws/codebuild/standard:2.0'
-        EnvironmentVariables:
-          - Name: COLLECTION_ID
-            Value: '{{resolve:ssm:/Postman/Lists/Staging/CollectionId:1}}'
-          - Name: ENVIRONMENT_ID
-            Value: '{{resolve:ssm:/Postman/Lists/Staging/EnvironmentId:1}}'
       ServiceRole: !GetAtt PostmanBuildsRole.Arn
       Source:
         Type: CODEPIPELINE
@@ -549,7 +545,7 @@ Resources:
       LogsConfig:
         CloudWatchLogs:
           Status: ENABLED
-          GroupName: !Sub ${PipelineName}-postman-staging
+          GroupName: !Sub ${PipelineName}-postman
           StreamName: ReactBuild
 
   StagingReactCodeBuildProject:
@@ -630,10 +626,10 @@ Resources:
       LogGroupName: !Sub ${PipelineName}-unittestlogs
       RetentionInDays: 30
 
-  StagingPostmanBuildLogsGroup:
+  PostmanBuildLogsGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub ${PipelineName}-postman-staging
+      LogGroupName: !Sub ${PipelineName}-postman
       RetentionInDays: 30
 
   ProdReactBuildLogsGroup:
