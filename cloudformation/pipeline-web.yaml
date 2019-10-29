@@ -135,6 +135,8 @@ Resources:
                 Resource:
                   - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/ewelists.com/staging/SSLCertificateId'
                   - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/ewelists.com/prod/SSLCertificateId'
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/CognitoUserPoolId/staging'
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/CognitoUserPoolId/prod'
         - PolicyName: ManageStagingS3
           PolicyDocument:
             Version: '2012-10-17'
@@ -546,7 +548,7 @@ Resources:
         CloudWatchLogs:
           Status: ENABLED
           GroupName: !Sub ${PipelineName}-postman
-          StreamName: ReactBuild
+          StreamName: PostmanTests
 
   StagingReactCodeBuildProject:
     Type: 'AWS::CodeBuild::Project'
@@ -699,10 +701,8 @@ Resources:
               - logs:CreateLogStream
               - logs:PutLogEvents
             Resource:
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-postman-staging"
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-postman-staging:*"
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-postman-prod"
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-postman-prod:*"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-postman"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-postman:*"
           - Effect: Allow
             Action:
               - s3:DeleteObject
