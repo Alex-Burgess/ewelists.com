@@ -31,3 +31,8 @@ Useful AWS documentation: [Adding Social Identity Providers to a User Pool](http
 1. Enable all Identity Providers in App Client Settings and select Allowed OAuth Flows and Scopes (console).
 1. Update Attribute mappings for the email attribute for each identity provider.
 1. Add the configuration to the config.js file in the React Web App.
+1. Create SSM parameter with user pool ID, which is specified as an environment variable in the cf template for the signup lambda function.
+    ```
+    aws ssm put-parameter --name /CognitoUserPoolId/test --type String \
+     --value "eu-west-1_abcd123e4"
+    ```
