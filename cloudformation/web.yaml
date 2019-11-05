@@ -422,6 +422,38 @@ Resources:
           Projection:
             ProjectionType: ALL
 
+  ProductsTable:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: !Sub "products-${Environment}"
+      AttributeDefinitions:
+        - AttributeName: productId
+          AttributeType: S
+        - AttributeName: url
+          AttributeType: S
+      KeySchema:
+        - AttributeName: productId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: url-index
+          KeySchema:
+            - AttributeName: url
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  NotFoundTable:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: !Sub "notfound-${Environment}"
+      AttributeDefinitions:
+        - AttributeName: productId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: productId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
 
 Outputs:
   WebCloudFrontUrl:
