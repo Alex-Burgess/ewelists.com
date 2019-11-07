@@ -429,19 +429,19 @@ Resources:
       AttributeDefinitions:
         - AttributeName: productId
           AttributeType: S
-        # - AttributeName: productUrl
-        #   AttributeType: S
+        - AttributeName: productUrl
+          AttributeType: S
       KeySchema:
         - AttributeName: productId
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
-      # GlobalSecondaryIndexes:
-      #   - IndexName: producturl-index
-      #     KeySchema:
-      #       - AttributeName: productUrl
-      #         KeyType: HASH
-      #     Projection:
-      #       ProjectionType: ALL
+      GlobalSecondaryIndexes:
+        - IndexName: producturl-index
+          KeySchema:
+            - AttributeName: productUrl
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
 
   NotFoundTable:
     Type: 'AWS::DynamoDB::Table'

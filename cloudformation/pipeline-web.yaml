@@ -241,6 +241,7 @@ Resources:
                   - dynamodb:DescribeTable
                   - dynamodb:CreateTable
                   - dynamodb:DeleteTable
+                  - dynamodb:UpdateTable
                 Effect: Allow
                 Resource:
                   - "arn:aws:dynamodb:*:*:table/*"
