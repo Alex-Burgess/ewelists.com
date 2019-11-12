@@ -61,9 +61,11 @@ As the hosted zone already exists for the production domain, we can skip creatin
     ```
 1. Add Postman Collection and Environment IDs to parameter store (See [Postman](#Postman) reference commands for retrieving IDs.):
     ```
-    aws ssm put-parameter --name /Postman/Lists/CollectionId --type String --value "6596444-38afc6ee-????"
-    aws ssm put-parameter --name /Postman/Lists/Staging/EnvironmentId --type String --value "6596444-ea7ff6c9-??????"
-    aws ssm put-parameter --name /Postman/Lists/Prod/EnvironmentId --type String --value "6596444-ea7ff6c9-??????"
+    aws ssm put-parameter --name /Postman/Collection/Lists --type String --value "6596444-38afc6ee-????"
+    aws ssm put-parameter --name /Postman/Collection/NotFound --type String --value "6596444-38afc6ee-????"
+    aws ssm put-parameter --name /Postman/Collection/Products --type String --value "6596444-38afc6ee-????"
+    aws ssm put-parameter --name /Postman/Environment/Staging --type String --value "6596444-ea7ff6c9-??????"
+    aws ssm put-parameter --name /Postman/Environment/Prod --type String --value "6596444-ea7ff6c9-??????"
     ```
 1. **Pipeline Stack:** Create the stack, using the cli to import the oauth token from the parameter store.
     ```

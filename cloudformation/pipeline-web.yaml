@@ -60,6 +60,120 @@ Resources:
             Prefix: !Sub '${PipelineName}-pipeline-artifacts*'
             Status: Enabled
 
+  ListsStagingBuildsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: sam-builds-lists-staging
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      LifecycleConfiguration:
+        Rules:
+          - Id: Builds expiration
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+            ExpirationInDays: 60
+            Prefix: !Sub 'sam-builds-lists-staging*'
+            Status: Enabled
+
+  ListsProdBuildsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: sam-builds-lists-prod
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      LifecycleConfiguration:
+        Rules:
+          - Id: Builds expiration
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+            ExpirationInDays: 60
+            Prefix: !Sub 'sam-builds-lists-prod*'
+            Status: Enabled
+
+  NotFoundStagingBuildsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: sam-builds-notfound-staging
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      LifecycleConfiguration:
+        Rules:
+          - Id: Builds expiration
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+            ExpirationInDays: 60
+            Prefix: !Sub 'sam-builds-notfound-staging*'
+            Status: Enabled
+
+  NotFoundProdBuildsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: sam-builds-notfound-prod
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      LifecycleConfiguration:
+        Rules:
+          - Id: Builds expiration
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+            ExpirationInDays: 60
+            Prefix: !Sub 'sam-builds-notfound-prod*'
+            Status: Enabled
+
+  ProductsStagingBuildsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: sam-builds-products-staging
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      LifecycleConfiguration:
+        Rules:
+          - Id: Builds expiration
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+            ExpirationInDays: 60
+            Prefix: !Sub 'sam-builds-products-staging*'
+            Status: Enabled
+
+  ProductsProdBuildsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: sam-builds-products-prod
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      LifecycleConfiguration:
+        Rules:
+          - Id: Builds expiration
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+            ExpirationInDays: 60
+            Prefix: !Sub 'sam-builds-products-prod*'
+            Status: Enabled
+
   PipelineRole:
     Type: AWS::IAM::Role
     Properties:
@@ -195,7 +309,7 @@ Resources:
                   - "arn:aws:s3:::www.ewelists.co.uk/*"
                   - "arn:aws:s3:::ewelists.com-logging"
                   - "arn:aws:s3:::ewelists.com-logging/*"
-        - PolicyName: ManagePiplineArtifactsBucket
+        - PolicyName: ManagePiplineAndBuildArtifactBuckets
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -207,6 +321,12 @@ Resources:
                 Effect: Allow
                 Resource:
                   - "arn:aws:s3:::web-pipeline-artifacts/*"
+                  - "arn:aws:s3:::sam-builds-lists-staging/*"
+                  - "arn:aws:s3:::sam-builds-lists-prod/*"
+                  - "arn:aws:s3:::sam-builds-notfound-staging/*"
+                  - "arn:aws:s3:::sam-builds-notfound-prod/*"
+                  - "arn:aws:s3:::sam-builds-products-staging/*"
+                  - "arn:aws:s3:::sam-builds-products-prod/*"
         - PolicyName: ManageRoute53
           PolicyDocument:
             Version: '2012-10-17'
@@ -392,6 +512,38 @@ Resources:
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
                 ParameterOverrides: '{ "Environment": "staging" }'
               RunOrder: 1
+            - Name: DeployNotFoundApi
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              InputArtifacts:
+                - Name: SamBuildAF
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                RoleArn: !GetAtt WebStackCFNRole.Arn
+                StackName: Service-NotFound-Staging
+                TemplatePath: SamBuildAF::notfound-packaged.yaml
+                Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+                ParameterOverrides: '{ "Environment": "staging" }'
+              RunOrder: 1
+            - Name: DeployProductsApi
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              InputArtifacts:
+                - Name: SamBuildAF
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                RoleArn: !GetAtt WebStackCFNRole.Arn
+                StackName: Service-Products-Staging
+                TemplatePath: SamBuildAF::products-packaged.yaml
+                Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+                ParameterOverrides: '{ "Environment": "staging" }'
+              RunOrder: 1
             - Name: PostmanTests
               ActionTypeId:
                 Category: Build
@@ -402,7 +554,11 @@ Resources:
                 - Name: ServiceAF
               Configuration:
                 ProjectName: !Sub ${PipelineName}-Postman
-                EnvironmentVariables: '[{"name":"ENVIRONMENT_ID","value":"/Postman/Lists/Staging/EnvironmentId","type":"PARAMETER_STORE"},{"name":"COLLECTION_ID","value":"/Postman/Lists/CollectionId","type":"PARAMETER_STORE"}]'
+                EnvironmentVariables: '[{"name":"ENVIRONMENT_ID","value":"/Postman/Environment/Staging","type":"PARAMETER_STORE"},
+                {"name":"LISTS_COLLECTION_ID","value":"/Postman/Collection/Lists","type":"PARAMETER_STORE"},
+                {"name":"NOTFOUND_COLLECTION_ID","value":"/Postman/Collection/NotFound","type":"PARAMETER_STORE"},
+                {"name":"PRODUCTS_COLLECTION_ID","value":"/Postman/Collection/Products","type":"PARAMETER_STORE"}
+                ]'
               RunOrder: 2
             - Name: ReactDeploy
               ActionTypeId:
@@ -486,8 +642,12 @@ Resources:
         ComputeType: BUILD_GENERAL1_SMALL
         Image: aws/codebuild/standard:1.0
         EnvironmentVariables:
-          - Name: BUILD_OUTPUT_BUCKET
-            Value: !Ref PipelineArtifactBucket
+          - Name: LISTS_BUILD_OUTPUT_BUCKET
+            Value: !Ref ListsStagingBuildsBucket
+          - Name: NOTFOUND_BUILD_OUTPUT_BUCKET
+            Value: !Ref NotFoundStagingBuildsBucket
+          - Name: PRODUCTS_BUILD_OUTPUT_BUCKET
+            Value: !Ref ProductsStagingBuildsBucket
       Source:
         Type: CODEPIPELINE
         BuildSpec: buildspec.yaml
@@ -495,7 +655,7 @@ Resources:
         CloudWatchLogs:
           Status: ENABLED
           GroupName: !Sub ${PipelineName}-sambuildlogs
-          StreamName: ListsSamBuilds
+          StreamName: SamStagingBuilds
       TimeoutInMinutes: 10
 
   UnitTestsCodeBuildProject:
@@ -677,6 +837,12 @@ Resources:
               - s3:GetBucketLocation
             Resource:
               - !Sub "arn:aws:s3:::${PipelineArtifactBucket}/*"
+              - "arn:aws:s3:::sam-builds-lists-staging/*"
+              - "arn:aws:s3:::sam-builds-lists-prod/*"
+              - "arn:aws:s3:::sam-builds-notfound-staging/*"
+              - "arn:aws:s3:::sam-builds-notfound-prod/*"
+              - "arn:aws:s3:::sam-builds-products-staging/*"
+              - "arn:aws:s3:::sam-builds-products-prod/*"
           Version: '2012-10-17'
 
   PostmanBuildsRole:
