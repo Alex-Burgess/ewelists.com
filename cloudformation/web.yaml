@@ -51,17 +51,11 @@ Resources:
         RestrictPublicBuckets: true
       LifecycleConfiguration:
         Rules:
-          - Id: CloudFront logs expiration
+          - Id: Logs expiration
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
             ExpirationInDays: 30
-            Prefix: cf-*
-            Status: Enabled
-          - Id: S3 logs expiration
-            AbortIncompleteMultipartUpload:
-              DaysAfterInitiation: 7
-            ExpirationInDays: 30
-            Prefix: s3-*
+            Prefix: ""
             Status: Enabled
 
   WebBucket:
@@ -118,11 +112,46 @@ Resources:
         RedirectAllRequestsTo:
           HostName: !Ref WebBucket
 
+  ImagesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !If [Prod, !Sub "${DomainName}-images", !Sub "${Environment}.${DomainName}-images"]
+      AccessControl: Private
+      LoggingConfiguration:
+        DestinationBucketName: !Ref LoggingBucket
+        LogFilePrefix: !If [Prod, !Sub 's3-${DomainName}-images/', !Sub 's3-${Environment}.${DomainName}-images/']
+      MetricsConfigurations:
+        - Id: EntireBucket
+
+  ImagesBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    DeletionPolicy: Retain
+    Properties:
+      Bucket: !Ref ImagesBucket
+      PolicyDocument:
+        Id: PolicyForCloudFrontPrivateContent
+        Version: 2012-10-17
+        Statement:
+          - Sid: CloudFrontGetBucketObjects
+            Effect: Allow
+            Action: 's3:GetObject'
+            Resource: !Sub 'arn:aws:s3:::${ImagesBucket}/*'
+            Principal:
+              AWS: !Sub
+                arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity
+                ${ImagesBucketOriginAccessIdentity}
+
+  ImagesBucketOriginAccessIdentity:
+    Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Sub 'OAI for ${ImagesBucket}'
+
   WebBucketOriginAccessIdentity:
     Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
     Properties:
       CloudFrontOriginAccessIdentityConfig:
-        Comment: !Sub 'OriginAccessIdentity for ${WebBucket}'
+        Comment: !Sub 'OAI for ${WebBucket}'
 
   WebDistribution:
     Type: AWS::CloudFront::Distribution
@@ -134,6 +163,11 @@ Resources:
           S3OriginConfig:
             OriginAccessIdentity: !Sub >-
               origin-access-identity/cloudfront/${WebBucketOriginAccessIdentity}
+        - DomainName: !Sub '${ImagesBucket}.s3.amazonaws.com'
+          Id: !Sub 'S3-${ImagesBucket}'
+          S3OriginConfig:
+            OriginAccessIdentity: !Sub >-
+              origin-access-identity/cloudfront/${ImagesBucketOriginAccessIdentity}
         Enabled: true
         Comment: "CDN for web bucket."
         DefaultRootObject: index.html
@@ -151,6 +185,14 @@ Resources:
             Cookies:
               Forward: none
           ViewerProtocolPolicy: redirect-to-https
+        CacheBehaviors:
+        - PathPattern: /images/*
+          TargetOriginId: !Sub 'S3-${ImagesBucket}'
+          ViewerProtocolPolicy: redirect-to-https
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
         CustomErrorResponses:
         - ErrorCode: 403
           ResponsePagePath: "/index.html"
