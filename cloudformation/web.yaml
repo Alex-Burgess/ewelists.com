@@ -448,6 +448,8 @@ Resources:
           AttributeType: S
         - AttributeName: userId
           AttributeType: S
+        - AttributeName: email
+          AttributeType: S
       KeySchema:
         - AttributeName: PK
           KeyType: HASH
@@ -458,6 +460,14 @@ Resources:
         - IndexName: userId-index
           KeySchema:
             - AttributeName: userId
+              KeyType: HASH
+            - AttributeName: PK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: email-index
+          KeySchema:
+            - AttributeName: email
               KeyType: HASH
             - AttributeName: PK
               KeyType: RANGE

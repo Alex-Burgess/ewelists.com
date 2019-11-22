@@ -429,6 +429,7 @@ Resources:
                 Repo: !Ref GitHubInfraRepo
                 Branch: !Ref GitHubBranch
                 OAuthToken: !Ref GitHubToken
+                PollForSourceChanges: false
               RunOrder: 1
             - Name: Content
               ActionTypeId:
@@ -443,6 +444,7 @@ Resources:
                 Repo: !Ref GitHubContentRepo
                 Branch: !Ref GitHubBranch
                 OAuthToken: !Ref GitHubToken
+                PollForSourceChanges: false
               RunOrder: 1
             - Name: ApiServices
               ActionTypeId:
@@ -457,6 +459,7 @@ Resources:
                 Repo: !Ref GitHubServicesRepo
                 Branch: !Ref GitHubBranch
                 OAuthToken: !Ref GitHubToken
+                PollForSourceChanges: false
               RunOrder: 1
         - Name: Build
           Actions:
