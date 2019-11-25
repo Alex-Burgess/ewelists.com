@@ -473,6 +473,14 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
+        - IndexName: SK-index
+          KeySchema:
+            - AttributeName: SK
+              KeyType: HASH
+            - AttributeName: PK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
 
   ProductsTable:
     Type: 'AWS::DynamoDB::Table'
