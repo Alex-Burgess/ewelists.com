@@ -51,6 +51,11 @@ As the hosted zone already exists for the production domain, we can skip creatin
 *Note:* The [Postman API documentation](https://docs.api.getpostman.com/?version=latest) has useful information on finding the collection and environment Ids.
 
 1. **Personal Access Token:** In github developer settings, create a Personal access token, with repo and admin:repo_hook scopes.
+1. **Create a github secret for the webhooks:**
+    ```
+    ruby -rsecurerandom -e 'puts SecureRandom.hex(20)'
+    aws ssm put-parameter --name "/ewelists.com/github_secret" --value "123456abcde...." --type SecureString
+    ```
 1. **Parameter Store:** Add github oauth key to parameter store.
     ```
     aws ssm put-parameter --name "/ewelists.com/github" --value "123456abcde...." --type SecureString
@@ -72,7 +77,8 @@ As the hosted zone already exists for the production domain, we can skip creatin
     aws cloudformation create-stack --stack-name Pipeline-Web \
      --template-body file://pipeline-web.yaml \
      --capabilities CAPABILITY_NAMED_IAM \
-     --parameters ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text`
+     --parameters ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text` \
+       ParameterKey=GitHubSecret,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github_secret" --with-decryption --query 'Parameter.Value' --output text`
     ```
 
 ## Update Web Pipeline
@@ -80,7 +86,8 @@ As the hosted zone already exists for the production domain, we can skip creatin
 aws cloudformation update-stack --stack-name Pipeline-Web \
  --template-body file://pipeline-web.yaml \
  --capabilities CAPABILITY_NAMED_IAM \
- --parameters ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text`
+ --parameters ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text` \
+   ParameterKey=GitHubSecret,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github_secret" --with-decryption --query 'Parameter.Value' --output text`
 ```
 
 ## Create Health Checks CI/CD Pipeline

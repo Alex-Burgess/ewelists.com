@@ -1,8 +1,6 @@
 # ewelists.com
 The main ewelists.com project
 
-Test Update for pipeline
-
 ## Contents
 
 1. [Test Environment](documentation/testEnvironment.md)
