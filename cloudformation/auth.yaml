@@ -23,21 +23,21 @@ Parameters:
   FacebookClientIdVersion:
     Type: String
     Default: 1
-  FacebookClientSecret:
+  FacebookClientSecretVersion:
     Type: String
-    NoEcho: true
+    Default: 1
   GoogleClientIdVersion:
     Type: String
     Default: 1
-  GoogleClientSecret:
+  GoogleClientSecretVersion:
     Type: String
-    NoEcho: true
+    Default: 1
   AmazonClientIdVersion:
     Type: String
     Default: 1
-  AmazonClientSecret:
+  AmazonClientSecretVersion:
     Type: String
-    NoEcho: true
+    Default: 1
   Environment:
     Description: Environment type.
     Default: prod
@@ -69,7 +69,11 @@ Resources:
       VerificationMessageTemplate:
           SmsMessage: "Your verification code is {####}. "
           EmailMessage: "Thank you for signing up with Ewelists.<p></p>\n\nYour verification code is {####}. "
-          EmailSubject: "Ewelists Test: Your verification code"
+          EmailSubject:
+            !If
+              - Prod
+              - "Ewelists: Your verification code"
+              - !Sub "Ewelists ${Environment}: Your verification code"
           EmailMessageByLink: "Please click the link below to verify your email address. {##Verify Email##} "
           EmailSubjectByLink: "Ewelists: Your verification link"
           DefaultEmailOption: "CONFIRM_WITH_CODE"
@@ -134,7 +138,7 @@ Resources:
           authorize_scopes: "public_profile, email"
           authorize_url: https://www.facebook.com/v2.12/dialog/oauth
           client_id: !Sub '{{resolve:ssm:/${DomainName}/${Environment}/Facebook/ClientId:${FacebookClientIdVersion}}}'
-          client_secret: !Ref FacebookClientSecret
+          client_secret: !Sub '{{resolve:ssm:/${DomainName}/${Environment}/Facebook/ClientSecret:${FacebookClientSecretVersion}}}'
           token_request_method: GET
           token_url: https://graph.facebook.com/v2.12/oauth/access_token
       ProviderName: Facebook
@@ -153,8 +157,8 @@ Resources:
           attributes_url_add_attributes: true
           authorize_scopes: "profile email openid"
           authorize_url: https://accounts.google.com/o/oauth2/v2/auth
-          client_id: !Sub '{{resolve:ssm:/${DomainName}/${Environment}/Google/ClientId:${FacebookClientIdVersion}}}'
-          client_secret: !Ref GoogleClientSecret
+          client_id: !Sub '{{resolve:ssm:/${DomainName}/${Environment}/Google/ClientId:${GoogleClientIdVersion}}}'
+          client_secret: !Sub '{{resolve:ssm:/${DomainName}/${Environment}/Google/ClientSecret:${GoogleClientSecretVersion}}}'
           oidc_issuer: https://accounts.google.com
           token_request_method: POST
           token_url: https://www.googleapis.com/oauth2/v4/token
@@ -174,8 +178,8 @@ Resources:
           attributes_url_add_attributes: false
           authorize_scopes: profile
           authorize_url: https://www.amazon.com/ap/oa
-          client_id: !Sub '{{resolve:ssm:/${DomainName}/${Environment}/Amazon/ClientId:${FacebookClientIdVersion}}}'
-          client_secret: !Ref AmazonClientSecret
+          client_id: !Sub '{{resolve:ssm:/${DomainName}/${Environment}/Amazon/ClientId:${AmazonClientIdVersion}}}'
+          client_secret: !Sub '{{resolve:ssm:/${DomainName}/${Environment}/Amazon/ClientSecret:${AmazonClientSecretVersion}}}'
           token_request_method: POST
           token_url: https://api.amazon.com/auth/o2/token
       ProviderName: LoginWithAmazon

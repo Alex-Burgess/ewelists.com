@@ -5,24 +5,21 @@ Useful AWS documentation: [Adding Social Identity Providers to a User Pool](http
 1. Add social identity providers to parameter store:
     ```
     aws ssm put-parameter --name /ewelists.com/test/Facebook/ClientId --type String --value "123456789012345"
-    aws ssm put-parameter --name /ewelists.com/test/Facebook/ClientSecret --type SecureString --value "123456789012345"
+    aws ssm put-parameter --name /ewelists.com/test/Facebook/ClientSecret --type String --value "123456789012345"
 
     aws ssm put-parameter --name /ewelists.com/test/Google/ClientId --type String --value "123456789012345"
-    aws ssm put-parameter --name /ewelists.com/test/Google/ClientSecret --type SecureString --value "123456789012345"
+    aws ssm put-parameter --name /ewelists.com/test/Google/ClientSecret --type String --value "123456789012345"
 
     aws ssm put-parameter --name /ewelists.com/test/Amazon/ClientId --type String --value "123456789012345"
-    aws ssm put-parameter --name /ewelists.com/test/Amazon/ClientSecret --type SecureString --value "123456789012345"
+    aws ssm put-parameter --name /ewelists.com/test/Amazon/ClientSecret --type String --value "123456789012345"
     ```
 1. Create Auth stack (with termination protection):
     ```
     aws cloudformation create-stack --stack-name Auth-Test \
      --template-body file://auth.yaml \
      --capabilities CAPABILITY_NAMED_IAM \
-     --enable-termination-protection
-     --parameters ParameterKey=Environment,ParameterValue=test \
-      ParameterKey=FacebookClientSecret,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/test/Facebook/ClientSecret" --with-decryption --query 'Parameter.Value' --output text` \
-      ParameterKey=GoogleClientSecret,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/test/Google/ClientSecret" --with-decryption --query 'Parameter.Value' --output text` \
-      ParameterKey=AmazonClientSecret,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/test/Amazon/ClientSecret" --with-decryption --query 'Parameter.Value' --output text`
+     --enable-termination-protection \
+     --parameters ParameterKey=Environment,ParameterValue=test
     ```
 
 1. Create SSM parameter with user pool ID, which is specified as an environment variable in the cf template for the signup lambda function.
