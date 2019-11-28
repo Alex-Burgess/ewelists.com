@@ -6,6 +6,38 @@ Parameters:
     Type: String
     Description: The name for the user pool
     Default: Ewelists
+  DomainName:
+    Description: Domain name for your website (example.com)
+    Type: String
+    AllowedPattern: "^[a-z0-9-]*.com$"
+    ConstraintDescription: Must be a web domain, ending in .com. Can include lower case letters, numbers and hypens.
+    Default: ewelists.com
+  FromEmail:
+    Type: String
+    Description: Email address used to send signup emails.
+    Default: contact@ewelists.com
+  SignUpFunction:
+    Type: String
+    Description: Sign up function name
+    Default: lists-signup
+  FacebookClientIdVersion:
+    Type: String
+    Default: 1
+  FacebookClientSecret:
+    Type: String
+    NoEcho: true
+  GoogleClientIdVersion:
+    Type: String
+    Default: 1
+  GoogleClientSecret:
+    Type: String
+    NoEcho: true
+  AmazonClientIdVersion:
+    Type: String
+    Default: 1
+  AmazonClientSecret:
+    Type: String
+    NoEcho: true
   Environment:
     Description: Environment type.
     Default: prod
@@ -18,6 +50,7 @@ Parameters:
 
 Conditions:
   Prod: !Equals [ !Ref Environment, prod ]
+  Staging: !Equals [ !Ref Environment, staging ]
 
 Resources:
   UserPool:
@@ -29,14 +62,125 @@ Resources:
         - email
       AutoVerifiedAttributes:
         - email
+      LambdaConfig:
+        PreSignUp: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${SignUpFunction}-${Environment}"
+      EmailVerificationMessage: "Thank you for signing up with Ewelists.<p></p>\n\nYour verification code is {####}."
+      EmailVerificationSubject: "Ewelists Test: Your verification code"
+      VerificationMessageTemplate:
+          SmsMessage: "Your verification code is {####}. "
+          EmailMessage: "Thank you for signing up with Ewelists.<p></p>\n\nYour verification code is {####}. "
+          EmailSubject: "Ewelists Test: Your verification code"
+          EmailMessageByLink: "Please click the link below to verify your email address. {##Verify Email##} "
+          EmailSubjectByLink: "Ewelists: Your verification link"
+          DefaultEmailOption: "CONFIRM_WITH_CODE"
+      EmailConfiguration:
+          SourceArn: !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${FromEmail}"
+          ReplyToEmailAddress: !Ref FromEmail
+          From: !Sub "Ewelists <${FromEmail}>"
+          EmailSendingAccount: "DEVELOPER"
 
   UserPoolClient:
     Type: AWS::Cognito::UserPoolClient
-    DeletionPolicy: Retain
     Properties:
-      ClientName: !Ref UserPoolName
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+        - profile
+      CallbackURLs:
+        - !If
+            - Prod
+            - 'https://ewelists.com'
+            - !If
+              - Staging
+              - !Sub 'https://${Environment}.ewelists.com'
+              - http://localhost:3000
+      ClientName: Ewelists
+      LogoutURLs:
+        - !If
+            - Prod
+            - 'https://ewelists.com/login'
+            - !If
+              - Staging
+              - !Sub 'https://${Environment}.ewelists.com/login'
+              - http://localhost:3000/login
+      RefreshTokenValidity: 30
+      SupportedIdentityProviders:
+        - COGNITO
+        - Facebook
+        - Google
+        - LoginWithAmazon
       UserPoolId: !Ref UserPool
-      GenerateSecret: false
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !If [Prod, 'ewelists', !Sub '${Environment}-ewelists']
+      UserPoolId: !Ref UserPool
+
+  FacebookIdentityProvider:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Properties:
+      AttributeMapping:
+          email: email
+          name: name
+          username: id
+      ProviderDetails:
+          attributes_url: https://graph.facebook.com/me?fields=
+          attributes_url_add_attributes: true
+          authorize_scopes: "public_profile, email"
+          authorize_url: https://www.facebook.com/v2.12/dialog/oauth
+          client_id: !Sub '{{resolve:ssm:/${DomainName}/${Environment}/Facebook/ClientId:${FacebookClientIdVersion}}}'
+          client_secret: !Ref FacebookClientSecret
+          token_request_method: GET
+          token_url: https://graph.facebook.com/v2.12/oauth/access_token
+      ProviderName: Facebook
+      ProviderType: Facebook
+      UserPoolId: !Ref UserPool
+
+  GoogleIdentityProvider:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Properties:
+      AttributeMapping:
+          email: email
+          name: name
+          username: sub
+      ProviderDetails:
+          attributes_url: https://people.googleapis.com/v1/people/me?personFields=
+          attributes_url_add_attributes: true
+          authorize_scopes: "profile email openid"
+          authorize_url: https://accounts.google.com/o/oauth2/v2/auth
+          client_id: !Sub '{{resolve:ssm:/${DomainName}/${Environment}/Google/ClientId:${FacebookClientIdVersion}}}'
+          client_secret: !Ref GoogleClientSecret
+          oidc_issuer: https://accounts.google.com
+          token_request_method: POST
+          token_url: https://www.googleapis.com/oauth2/v4/token
+      ProviderName: Google
+      ProviderType: Google
+      UserPoolId: !Ref UserPool
+
+  AmazonIdentityProvider:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Properties:
+      AttributeMapping:
+          email: email
+          name: name
+          username: user_id
+      ProviderDetails:
+          attributes_url: https://api.amazon.com/user/profile
+          attributes_url_add_attributes: false
+          authorize_scopes: profile
+          authorize_url: https://www.amazon.com/ap/oa
+          client_id: !Sub '{{resolve:ssm:/${DomainName}/${Environment}/Amazon/ClientId:${FacebookClientIdVersion}}}'
+          client_secret: !Ref AmazonClientSecret
+          token_request_method: POST
+          token_url: https://api.amazon.com/auth/o2/token
+      ProviderName: LoginWithAmazon
+      ProviderType: LoginWithAmazon
+      UserPoolId: !Ref UserPool
 
   IdentityPool:
     Type: AWS::Cognito::IdentityPool

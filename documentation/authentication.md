@@ -2,37 +2,50 @@
 Useful AWS documentation: [Adding Social Identity Providers to a User Pool](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-social-idp.html)
 
 ## Create Authentication Setup
+1. Add social identity providers to parameter store:
+    ```
+    aws ssm put-parameter --name /ewelists.com/test/Facebook/ClientId --type String --value "123456789012345"
+    aws ssm put-parameter --name /ewelists.com/test/Facebook/ClientSecret --type SecureString --value "123456789012345"
+
+    aws ssm put-parameter --name /ewelists.com/test/Google/ClientId --type String --value "123456789012345"
+    aws ssm put-parameter --name /ewelists.com/test/Google/ClientSecret --type SecureString --value "123456789012345"
+
+    aws ssm put-parameter --name /ewelists.com/test/Amazon/ClientId --type String --value "123456789012345"
+    aws ssm put-parameter --name /ewelists.com/test/Amazon/ClientSecret --type SecureString --value "123456789012345"
+    ```
 1. Create Auth stack (with termination protection):
     ```
     aws cloudformation create-stack --stack-name Auth-Test \
      --template-body file://auth.yaml \
      --capabilities CAPABILITY_NAMED_IAM \
-     --parameters ParameterKey=Environment,ParameterValue=test \
      --enable-termination-protection
+     --parameters ParameterKey=Environment,ParameterValue=test \
+      ParameterKey=FacebookClientSecret,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/test/Facebook/ClientSecret" --with-decryption --query 'Parameter.Value' --output text` \
+      ParameterKey=GoogleClientSecret,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/test/Google/ClientSecret" --with-decryption --query 'Parameter.Value' --output text` \
+      ParameterKey=AmazonClientSecret,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/test/Amazon/ClientSecret" --with-decryption --query 'Parameter.Value' --output text`
     ```
-1. Configure UserPool:
-  1. Callback URL(s): http://localhost:3000/
-  1. Sign out URL(s): http://localhost:3000/
-  1. Allowed OAuth Flows: Authorization code grant
-  1. Allowed OAuth Scopes: email, openid, aws.cognito.signin.user.admin, profile.
-  1. Domain Name: test-ewelists
-1. Configuring social authentication with LoginWithAmazon.
-  1. Create [Amazon](https://developer.amazon.com/login-with-amazon) developer account.
-  1. Create Security Profile - [Steps](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-social-idp.html)
-  1. Update app ID, secret and scope in Identity providers.
-1. Configuring social authentication with Google
-  1. Create [Google](https://console.developers.google.com) developer account.
-  1. Create OAuth client IDs - [Steps](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-social-idp.html)
-  1. Update app ID, secret and scope in Identity providers.
-1. Configuring social authentication with Facebook
-  1. Create [Facebook](https://developers.facebook.com/) developer account.
-  1. Create App ID - [Steps](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-social-idp.html)
-  1. Update app ID, secret and scope in Identity providers.
-1. Enable all Identity Providers in App Client Settings and select Allowed OAuth Flows and Scopes (console).
-1. Update Attribute mappings for the email attribute for each identity provider.
-1. Add the configuration to the config.js file in the React Web App.
+
 1. Create SSM parameter with user pool ID, which is specified as an environment variable in the cf template for the signup lambda function.
     ```
     aws ssm put-parameter --name /CognitoUserPoolId/test --type String \
      --value "eu-west-1_abcd123e4"
     ```
+
+## Update stack
+```
+aws cloudformation update-stack --stack-name Auth-Test \
+ --template-body file://auth.yaml \
+ --capabilities CAPABILITY_NAMED_IAM \
+ --parameters ParameterKey=Environment,ParameterValue=test
+```
+
+## Checklist (May be outdated)
+1. Callback Url(s)
+1. Signout Url(s)
+1. Allowed OAuth Flows: Authorization code grant
+1. Allowed OAuth Scopes: email, openid, aws.cognito.signin.user.admin, profile.
+1. Domain Name
+1. Social Authentication providers (Facebook, Google, LoginWithAmazon), with attribute mappings.
+1. React config.js
+1. Lambda triggers
+1. Email configuration
