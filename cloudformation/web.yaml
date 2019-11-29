@@ -456,6 +456,8 @@ Resources:
         - AttributeName: SK
           KeyType: RANGE
       BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: True
       GlobalSecondaryIndexes:
         - IndexName: userId-index
           KeySchema:
@@ -495,6 +497,8 @@ Resources:
         - AttributeName: productId
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: True
       GlobalSecondaryIndexes:
         - IndexName: producturl-index
           KeySchema:
@@ -514,6 +518,8 @@ Resources:
         - AttributeName: productId
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: True
 
 Outputs:
   WebCloudFrontUrl:
