@@ -373,6 +373,10 @@ Resources:
                   - "arn:aws:s3:::sam-builds-products-prod/*"
                   - "arn:aws:s3:::sam-builds-contact-staging/*"
                   - "arn:aws:s3:::sam-builds-contact-prod/*"
+                  - "arn:aws:s3:::cognito-ewelists-backups-staging"
+                  - "arn:aws:s3:::cognito-ewelists-backups-prod"
+                  - "arn:aws:s3:::cognito-ewelists-backups-staging/*"
+                  - "arn:aws:s3:::cognito-ewelists-backups-prod/*"
         - PolicyName: ManageRoute53
           PolicyDocument:
             Version: '2012-10-17'
