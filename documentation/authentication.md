@@ -28,7 +28,25 @@ Useful AWS documentation: [Adding Social Identity Providers to a User Pool](http
      --value "eu-west-1_abcd123e4"
     ```
 
-## Update stack
+## Update stack (BACKUP COGNITO FIRST)
+*NOTE:* Backup the user pool before performing an update.  Just in case a "replace" resource action has on userpool and user data is lost.
+
+Get user pool ids:
+```
+aws cognito-idp list-user-pools --max-results 10
+```
+
+Backup:
+```
+cognito-backup backup-users <USERPOOL_ID> --region eu-west-1 --file userpool-<ENV>-`date +"%Y-%m-%d"`.json
+```
+
+Copy backup to s3 bucket:
+```
+aws s3s cp userpool-<ENV>-2019-11-29.json s3://cognito-ewelists-backups-<ENV>
+```
+
+Update stack (BACKUP COGNITO FIRST):
 ```
 aws cloudformation update-stack --stack-name Auth-Test \
  --template-body file://auth.yaml \

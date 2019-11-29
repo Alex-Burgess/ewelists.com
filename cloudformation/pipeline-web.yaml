@@ -409,6 +409,8 @@ Resources:
                   - dynamodb:CreateTable
                   - dynamodb:DeleteTable
                   - dynamodb:UpdateTable
+                  - dynamodb:DescribeContinuousBackups
+                  - dynamodb:UpdateContinuousBackups
                 Effect: Allow
                 Resource:
                   - "arn:aws:dynamodb:*:*:table/*"

@@ -112,6 +112,18 @@ Resources:
         RedirectAllRequestsTo:
           HostName: !Ref WebBucket
 
+  CognitoBackupsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub "cognito-ewelists-backups-${Environment}"
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
   ImagesBucket:
     Type: AWS::S3::Bucket
     Properties:
