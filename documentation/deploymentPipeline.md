@@ -69,6 +69,7 @@ As the hosted zone already exists for the production domain, we can skip creatin
     aws ssm put-parameter --name /Postman/Collection/Lists --type String --value "6596444-38afc6ee-????"
     aws ssm put-parameter --name /Postman/Collection/NotFound --type String --value "6596444-38afc6ee-????"
     aws ssm put-parameter --name /Postman/Collection/Products --type String --value "6596444-38afc6ee-????"
+    aws ssm put-parameter --name /Postman/Collection/Contact --type String --value "6596444-38afc6ee-????"
     aws ssm put-parameter --name /Postman/Environment/Staging --type String --value "6596444-ea7ff6c9-??????"
     aws ssm put-parameter --name /Postman/Environment/Prod --type String --value "6596444-ea7ff6c9-??????"
     ```

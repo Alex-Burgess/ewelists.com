@@ -177,6 +177,45 @@ Resources:
             Prefix: !Sub 'sam-builds-products-prod*'
             Status: Enabled
 
+  ContactStagingBuildsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: sam-builds-contact-staging
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      LifecycleConfiguration:
+        Rules:
+          - Id: Builds expiration
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+            ExpirationInDays: 60
+            Prefix: !Sub 'sam-builds-contact-staging*'
+            Status: Enabled
+
+  ContactProdBuildsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: sam-builds-contact-prod
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      LifecycleConfiguration:
+        Rules:
+          - Id: Builds expiration
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+            ExpirationInDays: 60
+            Prefix: !Sub 'sam-builds-contact-prod*'
+            Status: Enabled
+
+
   PipelineRole:
     Type: AWS::IAM::Role
     Properties:
@@ -332,6 +371,8 @@ Resources:
                   - "arn:aws:s3:::sam-builds-notfound-prod/*"
                   - "arn:aws:s3:::sam-builds-products-staging/*"
                   - "arn:aws:s3:::sam-builds-products-prod/*"
+                  - "arn:aws:s3:::sam-builds-contact-staging/*"
+                  - "arn:aws:s3:::sam-builds-contact-prod/*"
         - PolicyName: ManageRoute53
           PolicyDocument:
             Version: '2012-10-17'
@@ -601,6 +642,22 @@ Resources:
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
                 ParameterOverrides: '{ "Environment": "staging" }'
               RunOrder: 1
+            - Name: DeployContactApi
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              InputArtifacts:
+                - Name: SamBuildAF
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                RoleArn: !GetAtt WebStackCFNRole.Arn
+                StackName: Service-Contact-Staging
+                TemplatePath: SamBuildAF::contact-packaged.yaml
+                Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+                ParameterOverrides: '{ "Environment": "staging" }'
+              RunOrder: 1
             - Name: PostmanTests
               ActionTypeId:
                 Category: Build
@@ -614,7 +671,8 @@ Resources:
                 EnvironmentVariables: '[{"name":"ENVIRONMENT_ID","value":"/Postman/Environment/Staging","type":"PARAMETER_STORE"},
                 {"name":"LISTS_COLLECTION_ID","value":"/Postman/Collection/Lists","type":"PARAMETER_STORE"},
                 {"name":"NOTFOUND_COLLECTION_ID","value":"/Postman/Collection/NotFound","type":"PARAMETER_STORE"},
-                {"name":"PRODUCTS_COLLECTION_ID","value":"/Postman/Collection/Products","type":"PARAMETER_STORE"}
+                {"name":"PRODUCTS_COLLECTION_ID","value":"/Postman/Collection/Products","type":"PARAMETER_STORE"},
+                {"name":"CONTACT_COLLECTION_ID","value":"/Postman/Collection/Contact","type":"PARAMETER_STORE"}
                 ]'
               RunOrder: 2
             - Name: ReactDeploy
@@ -705,6 +763,8 @@ Resources:
             Value: !Ref NotFoundStagingBuildsBucket
           - Name: PRODUCTS_BUILD_OUTPUT_BUCKET
             Value: !Ref ProductsStagingBuildsBucket
+          - Name: CONTACT_BUILD_OUTPUT_BUCKET
+            Value: !Ref ContactStagingBuildsBucket
       Source:
         Type: CODEPIPELINE
         BuildSpec: buildspec.yaml
@@ -900,6 +960,8 @@ Resources:
               - "arn:aws:s3:::sam-builds-notfound-prod/*"
               - "arn:aws:s3:::sam-builds-products-staging/*"
               - "arn:aws:s3:::sam-builds-products-prod/*"
+              - "arn:aws:s3:::sam-builds-contact-staging/*"
+              - "arn:aws:s3:::sam-builds-contact-prod/*"
           Version: '2012-10-17'
 
   PostmanBuildsRole:
