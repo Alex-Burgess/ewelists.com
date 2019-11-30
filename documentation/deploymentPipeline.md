@@ -73,6 +73,10 @@ As the hosted zone already exists for the production domain, we can skip creatin
     aws ssm put-parameter --name /Postman/Environment/Staging --type String --value "6596444-ea7ff6c9-??????"
     aws ssm put-parameter --name /Postman/Environment/Prod --type String --value "6596444-ea7ff6c9-??????"
     ```
+1. Add the cognito userpool ID to parameter store:
+    ```
+    aws ssm put-parameter --name /CognitoUserPoolId/prod --type String --value "eu-west-1_12345678"
+    ```
 1. **Pipeline Stack:** Create the stack, using the cli to import the oauth token from the parameter store.
     ```
     aws cloudformation create-stack --stack-name Pipeline-Web \

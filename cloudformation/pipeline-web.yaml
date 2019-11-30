@@ -696,7 +696,7 @@ Resources:
               RunOrder: 3
         - Name: Production
           Actions:
-            - Name: CreateChangeSet
+            - Name: ChangeSetWeb
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
@@ -712,14 +712,82 @@ Resources:
                 TemplatePath: !Sub "TemplateAF::${WebTemplatePath}"
                 ParameterOverrides: '{ "Environment": "prod" }'
               RunOrder: 1
-            - Name: ApproveChangeSet
+            - Name: ChangeSetLists
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              InputArtifacts:
+                - Name: SamBuildAF
+              Configuration:
+                ActionMode: CHANGE_SET_REPLACE
+                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                StackName: Service-Lists-Prod
+                ChangeSetName: Service-Lists-Prod-ChangeSet
+                TemplatePath: SamBuildAF::lists-packaged.yaml
+                ParameterOverrides: '{ "Environment": "prod" }'
+                Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+              RunOrder: 1
+            - Name: ChangeSetNotFound
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              InputArtifacts:
+                - Name: SamBuildAF
+              Configuration:
+                ActionMode: CHANGE_SET_REPLACE
+                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                StackName: Service-NotFound-Prod
+                ChangeSetName: Service-NotFound-Prod-ChangeSet
+                TemplatePath: SamBuildAF::notfound-packaged.yaml
+                ParameterOverrides: '{ "Environment": "prod" }'
+                Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+              RunOrder: 1
+            - Name: ChangeSetProducts
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              InputArtifacts:
+                - Name: SamBuildAF
+              Configuration:
+                ActionMode: CHANGE_SET_REPLACE
+                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                StackName: Service-Products-Prod
+                ChangeSetName: Service-Products-Prod-ChangeSet
+                TemplatePath: SamBuildAF::products-packaged.yaml
+                ParameterOverrides: '{ "Environment": "prod" }'
+                Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+              RunOrder: 1
+            - Name: ChangeSetContact
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              InputArtifacts:
+                - Name: SamBuildAF
+              Configuration:
+                ActionMode: CHANGE_SET_REPLACE
+                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                StackName: Service-Contact-Prod
+                ChangeSetName: Service-Contact-Prod-ChangeSet
+                TemplatePath: SamBuildAF::contact-packaged.yaml
+                ParameterOverrides: '{ "Environment": "prod" }'
+                Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+              RunOrder: 1
+            - Name: ApproveDeploy
               ActionTypeId:
                 Category: Approval
                 Owner: AWS
                 Provider: Manual
                 Version: '1'
               RunOrder: 2
-            - Name: ExecuteChangeSet
+            - Name: DeployWeb
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
@@ -731,19 +799,71 @@ Resources:
                 RoleArn: !GetAtt [WebStackCFNRole, Arn]
                 StackName: Web-Prod
               RunOrder: 3
-            - Name: ReactDeploy
+            - Name: DeployLists
               ActionTypeId:
-                Category: Build
+                Category: Deploy
                 Owner: AWS
+                Provider: CloudFormation
                 Version: '1'
-                Provider: CodeBuild
-              InputArtifacts:
-                - Name: ContentAF
-              OutputArtifacts:
-                - Name: ReactProd
               Configuration:
-                ProjectName: !Ref ProdReactCodeBuildProject
-              RunOrder: 4
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: Service-Lists-Prod-ChangeSet
+                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                StackName: Service-Lists-Prod
+                Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+              RunOrder: 3
+            - Name: DeployNotFound
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: Service-NotFound-Prod-ChangeSet
+                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                StackName: Service-NotFound-Prod
+                Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+              RunOrder: 3
+            - Name: DeployProducts
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: Service-Products-Prod-ChangeSet
+                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                StackName: Service-Products-Prod
+                Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+              RunOrder: 3
+            - Name: DeployContact
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: Service-Contact-Prod-ChangeSet
+                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                StackName: Service-Contact-Prod
+                Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+              RunOrder: 3
+            # - Name: ReactDeploy
+            #   ActionTypeId:
+            #     Category: Build
+            #     Owner: AWS
+            #     Version: '1'
+            #     Provider: CodeBuild
+            #   InputArtifacts:
+            #     - Name: ContentAF
+            #   OutputArtifacts:
+            #     - Name: ReactProd
+            #   Configuration:
+            #     ProjectName: !Ref ProdReactCodeBuildProject
+            #   RunOrder: 4
 
   SamBuildsCodeBuildProject:
     Type: AWS::CodeBuild::Project
