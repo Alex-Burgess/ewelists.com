@@ -851,6 +851,23 @@ Resources:
                 StackName: Service-Contact-Prod
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
               RunOrder: 3
+            - Name: PostmanTests
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: '1'
+                Provider: CodeBuild
+              InputArtifacts:
+                - Name: ServiceAF
+              Configuration:
+                ProjectName: !Sub ${PipelineName}-Postman
+                EnvironmentVariables: '[{"name":"ENVIRONMENT_ID","value":"/Postman/Environment/Prod","type":"PARAMETER_STORE"},
+                {"name":"LISTS_COLLECTION_ID","value":"/Postman/Collection/Lists","type":"PARAMETER_STORE"},
+                {"name":"NOTFOUND_COLLECTION_ID","value":"/Postman/Collection/NotFound","type":"PARAMETER_STORE"},
+                {"name":"PRODUCTS_COLLECTION_ID","value":"/Postman/Collection/Products","type":"PARAMETER_STORE"},
+                {"name":"CONTACT_COLLECTION_ID","value":"/Postman/Collection/Contact","type":"PARAMETER_STORE"}
+                ]'
+              RunOrder: 4
             # - Name: ReactDeploy
             #   ActionTypeId:
             #     Category: Build
@@ -863,7 +880,7 @@ Resources:
             #     - Name: ReactProd
             #   Configuration:
             #     ProjectName: !Ref ProdReactCodeBuildProject
-            #   RunOrder: 4
+            #   RunOrder: 5
 
   SamBuildsCodeBuildProject:
     Type: AWS::CodeBuild::Project
