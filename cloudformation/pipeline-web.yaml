@@ -692,7 +692,9 @@ Resources:
               OutputArtifacts:
                 - Name: ReactStag
               Configuration:
-                ProjectName: !Ref StagingReactCodeBuildProject
+                ProjectName: !Ref ReactCodeBuildProject
+                EnvironmentVariables: !Sub '[{"name":"ENVIRONMENT","value":"staging","type":"PLAINTEXT"},
+                {"name":"WEB_BUCKET","value":"staging.${WebBucketName}","type":"PLAINTEXT"}]'
               RunOrder: 3
         - Name: Production
           Actions:
@@ -868,19 +870,21 @@ Resources:
                 {"name":"CONTACT_COLLECTION_ID","value":"/Postman/Collection/Contact","type":"PARAMETER_STORE"}
                 ]'
               RunOrder: 4
-            # - Name: ReactDeploy
-            #   ActionTypeId:
-            #     Category: Build
-            #     Owner: AWS
-            #     Version: '1'
-            #     Provider: CodeBuild
-            #   InputArtifacts:
-            #     - Name: ContentAF
-            #   OutputArtifacts:
-            #     - Name: ReactProd
-            #   Configuration:
-            #     ProjectName: !Ref ProdReactCodeBuildProject
-            #   RunOrder: 5
+            - Name: ReactDeploy
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: '1'
+                Provider: CodeBuild
+              InputArtifacts:
+                - Name: ContentAF
+              OutputArtifacts:
+                - Name: ReactProd
+              Configuration:
+                ProjectName: !Ref ReactCodeBuildProject
+                EnvironmentVariables: !Sub '[{"name":"ENVIRONMENT","value":"prod","type":"PLAINTEXT"},
+                {"name":"WEB_BUCKET","value":"${WebBucketName}","type":"PLAINTEXT"}]'
+              RunOrder: 5
 
   SamBuildsCodeBuildProject:
     Type: AWS::CodeBuild::Project
@@ -971,46 +975,10 @@ Resources:
           GroupName: !Sub ${PipelineName}-postman
           StreamName: PostmanTests
 
-  StagingReactCodeBuildProject:
+  ReactCodeBuildProject:
     Type: 'AWS::CodeBuild::Project'
     Properties:
-      Name: !Sub ${PipelineName}-ReactBuild-Staging
-      Description: Builds react web application
-      Artifacts:
-        Type: CODEPIPELINE
-      Cache:
-        Type: LOCAL
-        Modes:
-        - LOCAL_DOCKER_LAYER_CACHE
-      Environment:
-        Type: LINUX_CONTAINER
-        ComputeType: BUILD_GENERAL1_SMALL
-        Image: 'aws/codebuild/standard:2.0'
-        EnvironmentVariables:
-          - Name: WEB_BUCKET
-            Value: !Sub 'staging.${WebBucketName}'
-          - Name: ENVIRONMENT
-            Value: staging
-      ServiceRole: !GetAtt ReactBuildsRole.Arn
-      Source:
-        Type: CODEPIPELINE
-        BuildSpec: buildspec-react.yaml
-      LogsConfig:
-        CloudWatchLogs:
-          Status: ENABLED
-          GroupName: !Sub ${PipelineName}-reactbuild-staging
-          StreamName: ReactBuild
-
-  StagingReactBuildLogsGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub ${PipelineName}-reactbuild-staging
-      RetentionInDays: 30
-
-  ProdReactCodeBuildProject:
-    Type: 'AWS::CodeBuild::Project'
-    Properties:
-      Name: !Sub ${PipelineName}-ReactBuild-Prod
+      Name: !Sub ${PipelineName}-ReactBuild
       Description: Builds react web application
       Artifacts:
         Type: CODEPIPELINE
@@ -1034,7 +1002,7 @@ Resources:
       LogsConfig:
         CloudWatchLogs:
           Status: ENABLED
-          GroupName: !Sub ${PipelineName}-reactbuild-prod
+          GroupName: !Sub ${PipelineName}-reactbuild
           StreamName: ReactBuild
 
   SamBuildLogsGroup:
@@ -1055,10 +1023,10 @@ Resources:
       LogGroupName: !Sub ${PipelineName}-postman
       RetentionInDays: 30
 
-  ProdReactBuildLogsGroup:
+  ReactBuildLogsGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub ${PipelineName}-reactbuild-prod
+      LogGroupName: !Sub ${PipelineName}-reactbuild
       RetentionInDays: 30
 
   SamBuildsRole:
@@ -1172,10 +1140,8 @@ Resources:
               - logs:CreateLogStream
               - logs:PutLogEvents
             Resource:
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-reactbuild-staging"
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-reactbuild-staging:*"
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-reactbuild-prod"
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-reactbuild-prod:*"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-reactbuild"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-reactbuild:*"
           - Effect: Allow
             Action:
               - s3:DeleteObject
