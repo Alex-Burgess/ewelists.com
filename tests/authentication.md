@@ -1,49 +1,52 @@
 # Testing - Authentication
 
-## Signup And Login Flows
-| File | Test Details | Expected Result |
+## Signup Tests
+| Page | Test Details | Notes |
 | --- | --- | --- |
-| Sign up - links | Click on Terms and Conditions Link | Terms and Conditions page shown in new tab. |
-| Sign up - links | Click on Privacy Policy Link | Privacy Policy page shown in new tab. |
-| Sign up | Enter name, Username and Password | Confirmation code page shown.<br> Email with code sent. |
-| Sign up - confirmation page | Enter confirmation code | Sign up complete, redirected to dashboard |
-| Sign up - amazon | Click amazon icon.<br> Get login to amazon page.<br> Enter password and complete process. | "Ewelists would like to access to: Profile" message show.<br> Link to privacy policy on Allow decision page.<br>Login complete and redirected to dashboard. |
-| Sign up - google | Click google icon.<br> Get login to google page.<br> Enter password and complete process. | Login page should have logo as well as working link to privacy policy and terms of service.<br>Login complete and redirected to dashboard. |
-| Sign up - facebook | Click facebook icon.<br> Get login to facebook page.<br> Enter password and complete process. | After login see "Ewelists will receive..." message.<br> After "Continue as ..." login completed and redirected to dashboard page. |
-| Login - links | Click on Terms and Conditions Link | Terms and Conditions page shown in new tab. |
-| Login - links | Click on Privacy Policy Link | Privacy Policy page shown in new tab. |
+| Sign up | Terms Link | Opens in new tab. |
+| Sign up | Privacy Policy Link | Opens in new tab. |
+| | **Username and Password** | |
+| Sign up | Sign up button disabled, until name, Username and Password entered. |  |
+| Sign up | Password validation 1 | Message: *Password does not contain any lower case letters.* |
+| Sign up | Password validation 2 | Message: *Password does not contain any upper case letters.* |
+| Sign up | Password validation 3 | Message: *Password does not contain any numbers.* |
+| Sign up | Password validation 4 | Message: *Password does not contain any symbols.* |
+| Confirmation page | Bad confirmation code. | Message: *Invalid verification code provided, please try again.* |
+| Confirmation page | Confirmation code page. | Completes sign up, redirected to dashboard |
+| Sign up | Re enter email | Message: *An account with the given email already exists.* |
+| | **Amazon** | |
+| Sign up | Click amazon icon | |
+| Amazon login | Complete signin | "Ewelists would like to access to: Profile" message show.<br> Link to privacy policy on Allow decision page. |
+| Sign up | Login complete and redirected to dashboard | |
+| | **Google** | |
+| Sign up | Click google icon |
+| Sign up | Complete signin | Login page should have logo as well as working link to privacy policy and terms of service. |
+| Sign up | Login complete and redirected to dashboard. | |
+| | **Facebook** | |
+| Sign up | Click facebook icon. | |
+| Sign up | Complete signin | After login see "Ewelists will receive..." message.<br> After "Continue as ..." |
+| Sign up | Login complete and redirected to dashboard | |
+
+## Login Tests
+| Page | Test Details | Notes |
+| --- | --- | --- |
+| | **Username and Password** | |
 | Login | Enter name, Username and Password | Login and redirected to dashboard |
-| Login - amazon | Click amazon icon.<br> Get login to amazon page.<br> Enter password and complete process. | "Ewelists would like to access to: Profile" message show.<br> Link to privacy policy on Allow decision page.<br>Login complete and redirected to dashboard. |
-| Login - google | Click google icon.<br> Get login to google page.<br> Enter password and complete process. | Login page should have logo as well as working link to privacy policy and terms of service.<br>Login complete and redirected to dashboard. |
-| Login - facebook | Click facebook icon.<br> Get login to facebook page.<br> Enter password and complete process. | After login see "Ewelists will receive..." message.<br> After "Continue as ..." login completed and redirected to dashboard page. |
-| Sign out - amazon | Click sign out link | Get redirected to login page |
-| Sign out - google | Click sign out link | Get redirected to login page |
-| Sign out - facebook | Click sign out link | Get redirected to login page |
-
-
-Sign up Form Validation:
-
-| File | Test Details | Expected Result |
-| --- | --- | --- |
-| Sign up - Validation | No name, or valid email or password > 5 | Form cannot be submitted |
-| Sign up - Validation | Email already exists | An account with the given email already exists. |
-| Sign up - Validation | Bad password | Password did not conform with policy: Password not long enough |
-| Confirmation page - Validation | Bad confirmation code | Invalid verification code provided, please try again. |
-
-Login Page Form Validation:
-
-| File | Test Details | Expected Result |
-| --- | --- | --- |
-| Login - Validation | No valid email or password > 5 | Form cannot be submitted |
-| Login - Validation | Incorrect email | User does not exist |
-| Login - Validation | Incorrect password | Incorrect username or password. |
-
-Reset Page Form Validation:
-
-| File | Test Details | Expected Result |
-| --- | --- | --- |
-| Request - Validation | No valid email | Form cannot be submitted |
-| Request - Validation | Email does not exist | User does not exist |
-| Reset  - Validation | No confirmation code, no password, no confirmation password and password and confirmation password don't match | Form cannot be submitted |
-| Reset - Validation | Bad confirmation code, or bad password syntax | Appropriate Error message |
-| Success - Complete | Success | Success message with link to log in. |
+| Login | Bad user | Message: *User does not exist.* |
+| Login | Bad password | Message: *Incorrect username or password.* |
+| Login | Forgot password | Links to reset password |
+| Reset | Wrong code | Message: *Invalid verification code provided, please try again.* |
+| Reset | Invalid password | Message: *Password does not conform to policy: Password must have lowercase characters.* |
+| Reset | Correct code and valid, matching passwords | Reset complete. |
+| | **Amazon** | |
+| Sign up | Click amazon icon | |
+| Amazon login | Complete signin | "Ewelists would like to access to: Profile" message show.<br> Link to privacy policy on Allow decision page. |
+| Sign up | Login complete and redirected to dashboard | |
+| | **Google** | |
+| Sign up | Click google icon |
+| Sign up | Complete signin | Login page should have logo as well as working link to privacy policy and terms of service. |
+| Sign up | Login complete and redirected to dashboard. | |
+| | **Facebook** | |
+| Sign up | Click facebook icon. | |
+| Sign up | Complete signin | After login see "Ewelists will receive..." message.<br> After "Continue as ..." |
+| Sign up | Login complete and redirected to dashboard | |
