@@ -10,7 +10,7 @@ A full suite of tests per device is deemed excessive at this stage. The current 
 | --- | --- | --- |
 | Main | Landing Page | Tablet and phone devices should have menu button. <br /> Larger devices should see individual menu items. |
 | Main | Error Page | |
-| Footer | Contact Us | iPad - Main content is too low. |
+| Footer | Contact Us | iPad - Main content is too low.  iPhone is even worse. |
 | Footer | About Us | Just links to About Us section on landing page. |
 | Footer | Privacy | |
 | Footer | Terms | |
@@ -33,7 +33,7 @@ In production, test user 3 can be timb33045@gmail.com.
 
 | User | Action | Notes |
 | --- | --- | --- |
-| test3 | On iPad, Sign up with own social accounts | google, amazon, facebook. FIRST LOGIN ATTEMPTS NOT WORKING (?) |
+| test3 | On iPad with private browser, Sign up with timb33045@gmail.com google social accounts | google, amazon, facebook. FIRST LOGIN ATTEMPTS NOT WORKING (?) |
 | | **SWITCH USER** | |
 | test1 | Sign Up with username password | Use normal chrome browser, with device size.  |
 | test1 | Create new list | |
@@ -42,9 +42,9 @@ In production, test user 3 can be timb33045@gmail.com.
 | test1 | Add product 2, that doesn't exist in products table, with quantity 1 | Check quantity buttons |
 | test1 | Add product 3, that doesn't exist, with quantity 4 | |
 | test1 | Share list with user 2 - test2 | |
-| test1 | Share list with user 3 - burgess.alexander@gmail.com | |
+| test1 | Share list with user 3 - timb33045@gmail.com | |
 | | **SWITCH USER** | |
-| test2 | On iphone, access link from email | |
+| test2 | On iphone with private browser, access link from email | |
 | test2 | Sign Up with username and password | Should finish on list page |
 | test2 | Reserve 1 of product 1 | Check quantities buttons |
 | test2 | Reserve 2 of product 3 | |
@@ -55,7 +55,7 @@ In production, test user 3 can be timb33045@gmail.com.
 | test3 | Login with social accounts | GET LANDING PAGE NOT VIEW LIST |
 | test3 | Browser to view list | |
 | test3 | Test product filters | |
-| test3 | Reserve 1 of product 1 | |
+| test3 | Reserve 1 of product 2 | |
 | test3 | Reserve 2 of product 3 | |
 | test3 | Update product 3 to quantity of 1 | |
 | test3 | Create list | |

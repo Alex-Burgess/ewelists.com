@@ -36,4 +36,4 @@ In this section we test the following:
 | Page missing | https://staging.ewelists.com/nopage | 200 (404 shown in browser) |
 | Status Page | https://staging.ewelists.com/status.html | 200 |
 | Robots | https://staging.ewelists.com/robots.txt | 200 <br> Disallow: / |
-| Sitemap | https://staging.ewelists.com/sitemamp.xml | 200 <br> Disallow: / |
+| Sitemap | https://staging.ewelists.com/sitemamp.xml | Should contain 10+ items. |
