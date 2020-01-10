@@ -4,6 +4,11 @@ A full suite of tests per device is deemed excessive at this stage. The current 
 * Check pages render correctly
 * Check main flows work correctly.
 
+## Test Users
+User 1: burgess.alexander+test1@gmail.com
+User 2: burgess.alexander+test2@gmail.com
+User 3: timb33045@gmail.com
+
 ## UnAuthed Page Checklist
 
 | Section | Page | Notes |
@@ -37,7 +42,7 @@ In production, test user 3 can be timb33045@gmail.com.
 | | **SWITCH USER** | |
 | test1 | Sign Up with username password | Use normal chrome browser, with device size.  |
 | test1 | Create new list | |
-| test1 | Edit details | Add a data, update the description and occasion |
+| test1 | Edit details | Add a date, update the description and occasion |
 | test1 | Add product 1, that exists in products table, with quantity 2 | Check quantity buttons |
 | test1 | Add product 2, that doesn't exist in products table, with quantity 1 | Check quantity buttons |
 | test1 | Add product 3, that doesn't exist, with quantity 4 | |
@@ -53,9 +58,9 @@ In production, test user 3 can be timb33045@gmail.com.
 | | **SWITCH USER** | |
 | test3 | On ipad, access link from email | |
 | test3 | Login with social accounts | GET LANDING PAGE NOT VIEW LIST |
-| test3 | Browser to view list | |
-| test3 | Test product filters | |
+| test3 | Browse to view list | |
 | test3 | Reserve 1 of product 2 | |
+| test3 | Test product filters | |
 | test3 | Reserve 2 of product 3 | |
 | test3 | Update product 3 to quantity of 1 | |
 | test3 | Create list | |

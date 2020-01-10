@@ -1,5 +1,13 @@
 # Testing - Authentication
 
+## Test Account (With google, amazon and facebook accounts.)
+Name: Tim BL
+Email: timb33045@gmail.com
+
+## Preparation
+1. Delete user account from lists-staging table.
+1. Delete user account from cognito.
+
 ## Signup Tests
 | Page | Test Details | Notes |
 | --- | --- | --- |
