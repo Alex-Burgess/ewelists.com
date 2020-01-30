@@ -13,6 +13,8 @@ Useful AWS documentation: [Adding Social Identity Providers to a User Pool](http
     aws ssm put-parameter --name /ewelists.com/test/Amazon/ClientId --type String --value "123456789012345"
     aws ssm put-parameter --name /ewelists.com/test/Amazon/ClientSecret --type String --value "123456789012345"
     ```
+1. Ensure that the required trigger lambda functions have been created.  (lists-signup-<env> and contact-welcome-<env>)
+1. Ensure that the required ses templates have been created (welcome)  See [Mail](documentation/mail.md) for more details.
 1. Create Auth stack (with termination protection):
     ```
     aws cloudformation create-stack --stack-name Auth-Test \
