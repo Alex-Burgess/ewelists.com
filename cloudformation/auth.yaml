@@ -20,10 +20,6 @@ Parameters:
     Type: String
     Description: Sign up function name
     Default: lists-signup
-  WelcomeFunction:
-    Type: String
-    Description: Sign up function name
-    Default: contact-welcome
   FacebookClientIdVersion:
     Type: String
     Default: 1
@@ -253,7 +249,6 @@ Resources:
         - email
       LambdaConfig:
         PreSignUp: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${SignUpFunction}-${Environment}"
-        PostConfirmation: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${WelcomeFunction}-${Environment}"
       EmailVerificationMessage: "Thank you for signing up with Ewelists.<p></p>\n\nYour verification code is {####}."
       EmailVerificationSubject: "Verify your Ewelists account"
       EmailConfiguration:
