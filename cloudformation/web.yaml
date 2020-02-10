@@ -192,6 +192,7 @@ Resources:
           - !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", !Sub '${WebBucket}' ]
         DefaultCacheBehavior:
           TargetOriginId: !Sub 'S3-${WebBucket}'
+          Compress: true
           ForwardedValues:
             QueryString: false
             Cookies:
@@ -200,6 +201,7 @@ Resources:
         CacheBehaviors:
         - PathPattern: /images/*
           TargetOriginId: !Sub 'S3-${ImagesBucket}'
+          Compress: true
           ViewerProtocolPolicy: redirect-to-https
           ForwardedValues:
             QueryString: false
