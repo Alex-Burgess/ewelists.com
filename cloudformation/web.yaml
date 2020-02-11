@@ -228,7 +228,7 @@ Resources:
             QueryString: false
             Cookies:
               Forward: none
-        - PathPattern: /listideas/*
+        - PathPattern: /listideas*
           TargetOriginId: !Sub 'S3-${PageRedirectsBucket}'
           Compress: true
           ViewerProtocolPolicy: redirect-to-https

@@ -313,7 +313,6 @@ Resources:
                 Effect: Allow
                 Resource:
                   - "arn:aws:s3:::staging.ewelists.com"
-                  - "arn:aws:s3:::staging.ewelists.com-images"
                   - "arn:aws:s3:::staging.ewelists.com/*"
                   - "arn:aws:s3:::staging.ewelists.co.uk"
                   - "arn:aws:s3:::staging.ewelists.co.uk/*"
@@ -323,6 +322,8 @@ Resources:
                   - "arn:aws:s3:::www.staging.ewelists.co.uk/*"
                   - "arn:aws:s3:::staging.ewelists.com-logging"
                   - "arn:aws:s3:::staging.ewelists.com-logging/*"
+                  - "arn:aws:s3:::staging.ewelists.com-images"
+                  - "arn:aws:s3:::staging.ewelists.com-redirects"
         - PolicyName: ManageProdS3
           PolicyDocument:
             Version: '2012-10-17'
@@ -343,7 +344,6 @@ Resources:
                 Effect: Allow
                 Resource:
                   - "arn:aws:s3:::ewelists.com"
-                  - "arn:aws:s3:::ewelists.com-images"
                   - "arn:aws:s3:::ewelists.com/*"
                   - "arn:aws:s3:::ewelists.co.uk"
                   - "arn:aws:s3:::ewelists.co.uk/*"
@@ -353,6 +353,8 @@ Resources:
                   - "arn:aws:s3:::www.ewelists.co.uk/*"
                   - "arn:aws:s3:::ewelists.com-logging"
                   - "arn:aws:s3:::ewelists.com-logging/*"
+                  - "arn:aws:s3:::ewelists.com-images"
+                  - "arn:aws:s3:::ewelists.com-redirects"
         - PolicyName: ManagePiplineAndBuildArtifactBuckets
           PolicyDocument:
             Version: '2012-10-17'
