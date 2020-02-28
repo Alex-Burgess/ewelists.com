@@ -174,7 +174,7 @@ Resources:
                                 <td>
                                   <div class="list-ideas" style="box-sizing: border-box; display: flex; Margin: 0 auto; align-items: center;">
                                     <img class="gift-image" style="display:block; border:none; padding-right: 0px; max-height: 150px; object-fit: contain;" width="200" alt="Ewelists"
-                                      src="{{imageUrl}}"
+                                      src="{{image_url}}"
                                     >
                                   </div>
                                 </td>
