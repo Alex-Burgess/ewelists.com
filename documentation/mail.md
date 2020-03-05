@@ -40,3 +40,17 @@ aws cloudformation update-stack --stack-name Email-Template-ReserveConfirmation-
  --template-body file://reserve-confirmation.yaml \
  --parameters ParameterKey=Environment,ParameterValue=test
 ```
+
+
+## Purchase Confirmation Template
+Same as welcome, but different template.
+
+```
+aws cloudformation create-stack --stack-name Email-Template-PurchaseConfirmation-Test \
+ --template-body file://purchase-confirmation.yaml \
+ --parameters ParameterKey=Environment,ParameterValue=test
+
+aws cloudformation update-stack --stack-name Email-Template-PurchaseConfirmation-Test \
+ --template-body file://purchase-confirmation.yaml \
+ --parameters ParameterKey=Environment,ParameterValue=test
+```
