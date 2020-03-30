@@ -493,6 +493,8 @@ Resources:
           AttributeType: S
         - AttributeName: email
           AttributeType: S
+        - AttributeName: reservationId
+          AttributeType: S
       KeySchema:
         - AttributeName: PK
           KeyType: HASH
@@ -505,6 +507,14 @@ Resources:
         - IndexName: userId-index
           KeySchema:
             - AttributeName: userId
+              KeyType: HASH
+            - AttributeName: PK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: reservationId-index
+          KeySchema:
+            - AttributeName: reservationId
               KeyType: HASH
             - AttributeName: PK
               KeyType: RANGE

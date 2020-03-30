@@ -4,6 +4,15 @@ A full suite of tests per device is deemed excessive at this stage. The current 
 * Check pages render correctly
 * Check main flows work correctly.
 
+# Missing Tests
+The test steps need to be modified to include the following:
+* Reserve and confirm flows
+* Edit title, updates reservation title.
+* Delete list. View list error page.  View reservation error page.
+* links in emails
+* page titles
+
+
 ## Test Users
 User 1: burgess.alexander+test1@gmail.com
 User 2: burgess.alexander+test2@gmail.com
