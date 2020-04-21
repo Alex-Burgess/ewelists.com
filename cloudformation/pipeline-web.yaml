@@ -79,7 +79,7 @@ Resources:
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
             ExpirationInDays: 60
-            Prefix: !Sub 'sam-builds-lists-staging*'
+            Prefix: sam-builds-lists-staging*
             Status: Enabled
 
   ListsProdBuildsBucket:
@@ -98,7 +98,7 @@ Resources:
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
             ExpirationInDays: 60
-            Prefix: !Sub 'sam-builds-lists-prod*'
+            Prefix: sam-builds-lists-prod*
             Status: Enabled
 
   NotFoundStagingBuildsBucket:
@@ -117,7 +117,7 @@ Resources:
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
             ExpirationInDays: 60
-            Prefix: !Sub 'sam-builds-notfound-staging*'
+            Prefix: sam-builds-notfound-staging*
             Status: Enabled
 
   NotFoundProdBuildsBucket:
@@ -136,7 +136,7 @@ Resources:
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
             ExpirationInDays: 60
-            Prefix: !Sub 'sam-builds-notfound-prod*'
+            Prefix: sam-builds-notfound-prod*
             Status: Enabled
 
   ProductsStagingBuildsBucket:
@@ -155,7 +155,7 @@ Resources:
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
             ExpirationInDays: 60
-            Prefix: !Sub 'sam-builds-products-staging*'
+            Prefix: sam-builds-products-staging*
             Status: Enabled
 
   ProductsProdBuildsBucket:
@@ -174,7 +174,7 @@ Resources:
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
             ExpirationInDays: 60
-            Prefix: !Sub 'sam-builds-products-prod*'
+            Prefix: sam-builds-products-prod*
             Status: Enabled
 
   ContactStagingBuildsBucket:
@@ -193,7 +193,7 @@ Resources:
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
             ExpirationInDays: 60
-            Prefix: !Sub 'sam-builds-contact-staging*'
+            Prefix: sam-builds-contact-staging*
             Status: Enabled
 
   ContactProdBuildsBucket:
@@ -212,7 +212,7 @@ Resources:
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
             ExpirationInDays: 60
-            Prefix: !Sub 'sam-builds-contact-prod*'
+            Prefix: sam-builds-contact-prod*
             Status: Enabled
 
 
@@ -676,12 +676,7 @@ Resources:
                 - Name: ServiceAF
               Configuration:
                 ProjectName: !Sub ${PipelineName}-Postman
-                EnvironmentVariables: '[{"name":"ENVIRONMENT_ID","value":"/Postman/Environment/Staging","type":"PARAMETER_STORE"},
-                {"name":"LISTS_COLLECTION_ID","value":"/Postman/Collection/Lists","type":"PARAMETER_STORE"},
-                {"name":"NOTFOUND_COLLECTION_ID","value":"/Postman/Collection/NotFound","type":"PARAMETER_STORE"},
-                {"name":"PRODUCTS_COLLECTION_ID","value":"/Postman/Collection/Products","type":"PARAMETER_STORE"},
-                {"name":"CONTACT_COLLECTION_ID","value":"/Postman/Collection/Contact","type":"PARAMETER_STORE"}
-                ]'
+                EnvironmentVariables: '[{"name":"ENVIRONMENT_ID","value":"/Postman/Environment/Staging","type":"PARAMETER_STORE"}]'
               RunOrder: 2
             - Name: ReactDeploy
               ActionTypeId:
@@ -865,12 +860,7 @@ Resources:
                 - Name: ServiceAF
               Configuration:
                 ProjectName: !Sub ${PipelineName}-Postman
-                EnvironmentVariables: '[{"name":"ENVIRONMENT_ID","value":"/Postman/Environment/Prod","type":"PARAMETER_STORE"},
-                {"name":"LISTS_COLLECTION_ID","value":"/Postman/Collection/Lists","type":"PARAMETER_STORE"},
-                {"name":"NOTFOUND_COLLECTION_ID","value":"/Postman/Collection/NotFound","type":"PARAMETER_STORE"},
-                {"name":"PRODUCTS_COLLECTION_ID","value":"/Postman/Collection/Products","type":"PARAMETER_STORE"},
-                {"name":"CONTACT_COLLECTION_ID","value":"/Postman/Collection/Contact","type":"PARAMETER_STORE"}
-                ]'
+                EnvironmentVariables: '[{"name":"ENVIRONMENT_ID","value":"/Postman/Environment/Prod","type":"PARAMETER_STORE"}]'
               RunOrder: 4
             - Name: ReactDeploy
               ActionTypeId:
