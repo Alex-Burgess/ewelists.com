@@ -6,6 +6,8 @@ Web Email client: https://ewelists.awsapps.com/mail
 
 SES is used to send emails, for signup confirmation emails, as well as welcome emails.
 
+*Note: Templates have been moved to services repo.  Update docs.*
+
 
 ## Welcome Template
 To test the template, edit welcome-template.html and view in a browser.
