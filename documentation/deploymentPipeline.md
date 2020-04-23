@@ -48,17 +48,14 @@ As the hosted zone already exists for the production domain, we can skip creatin
     ```
 
 ## Create Web CI/CD Pipeline
-*Note:* The [Postman API documentation](https://docs.api.getpostman.com/?version=latest) has useful information on finding the collection and environment Ids.
-
-1. **Personal Access Token:** In github developer settings, create a Personal access token, with repo and admin:repo_hook scopes.
-1. **Create a github secret for the webhooks:**
+1. **Personal Access Token:** In github developer settings, create a Personal access token, with repo and admin:repo_hook scopes.  Add the token to the parameter store.
+    ```
+    aws ssm put-parameter --name "/ewelists.com/github" --value "123456abcde...." --type SecureString
+    ```
+1. **Create a github secret for the webhooks:**  When the stack is created in the step below, you should see a Webhook created in each of the repo's settings.
     ```
     ruby -rsecurerandom -e 'puts SecureRandom.hex(20)'
     aws ssm put-parameter --name "/ewelists.com/github_secret" --value "123456abcde...." --type SecureString
-    ```
-1. **Parameter Store:** Add github oauth key to parameter store.
-    ```
-    aws ssm put-parameter --name "/ewelists.com/github" --value "123456abcde...." --type SecureString
     ```
 1. Add Postman API Key to Parameter store:
     ```
@@ -123,6 +120,8 @@ aws cloudformation update-stack --stack-name Pipeline-HealthChecks \
 
 # Reference
 ### Postman
+The [Postman API documentation](https://docs.api.getpostman.com/?version=latest) has useful information on finding the collection and environment Ids.
+
 Set a local environment variable for the Postman API key:
 ```
 export POSTMAN=??????

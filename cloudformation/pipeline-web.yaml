@@ -4,7 +4,7 @@ Parameters:
   PipelineName:
     Type: String
     Description: Name of application used to describe resources.
-    Default: web
+    Default: main
     AllowedPattern: "^[-a-z0-9]*$"
     ConstraintDescription: Application name can include numbers, lowercase letters, and hyphens (-).
   WebBucketName:
@@ -38,7 +38,7 @@ Parameters:
   GitHubSecret:
     Type: String
     NoEcho: true
-  WebTemplatePath:
+  MainTemplatePath:
     Default: cloudformation/web.yaml
     Description: The path of the Web stack template
     Type: String
@@ -47,7 +47,7 @@ Resources:
   PipelineArtifactBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub '${PipelineName}-pipeline-artifacts'
+      BucketName: !Sub 'pipeline-${PipelineName}-artifacts'
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: True
@@ -60,13 +60,13 @@ Resources:
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
             ExpirationInDays: 180
-            Prefix: !Sub '${PipelineName}-pipeline-artifacts*'
+            Prefix: !Sub 'pipeline-${PipelineName}-artifacts*'
             Status: Enabled
 
-  ListsStagingBuildsBucket:
+  ListsBuildsBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: sam-builds-lists-staging
+      BucketName: services-builds-lists
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: True
@@ -79,13 +79,13 @@ Resources:
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
             ExpirationInDays: 60
-            Prefix: sam-builds-lists-staging*
+            Prefix: services-builds-lists-staging*
             Status: Enabled
 
-  ListsProdBuildsBucket:
+  NotFoundBuildsBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: sam-builds-lists-prod
+      BucketName: services-builds-notfound
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: True
@@ -98,13 +98,13 @@ Resources:
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
             ExpirationInDays: 60
-            Prefix: sam-builds-lists-prod*
+            Prefix: services-builds-notfound-staging*
             Status: Enabled
 
-  NotFoundStagingBuildsBucket:
+  ProductsBuildsBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: sam-builds-notfound-staging
+      BucketName: services-builds-products
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: True
@@ -117,13 +117,13 @@ Resources:
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
             ExpirationInDays: 60
-            Prefix: sam-builds-notfound-staging*
+            Prefix: services-builds-products-staging*
             Status: Enabled
 
-  NotFoundProdBuildsBucket:
+  ContactBuildsBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: sam-builds-notfound-prod
+      BucketName: services-builds-contact
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: True
@@ -136,90 +136,13 @@ Resources:
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
             ExpirationInDays: 60
-            Prefix: sam-builds-notfound-prod*
+            Prefix: services-builds-contact-staging*
             Status: Enabled
-
-  ProductsStagingBuildsBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: sam-builds-products-staging
-      AccessControl: Private
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: True
-        BlockPublicPolicy: True
-        IgnorePublicAcls: True
-        RestrictPublicBuckets: True
-      LifecycleConfiguration:
-        Rules:
-          - Id: Builds expiration
-            AbortIncompleteMultipartUpload:
-              DaysAfterInitiation: 7
-            ExpirationInDays: 60
-            Prefix: sam-builds-products-staging*
-            Status: Enabled
-
-  ProductsProdBuildsBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: sam-builds-products-prod
-      AccessControl: Private
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: True
-        BlockPublicPolicy: True
-        IgnorePublicAcls: True
-        RestrictPublicBuckets: True
-      LifecycleConfiguration:
-        Rules:
-          - Id: Builds expiration
-            AbortIncompleteMultipartUpload:
-              DaysAfterInitiation: 7
-            ExpirationInDays: 60
-            Prefix: sam-builds-products-prod*
-            Status: Enabled
-
-  ContactStagingBuildsBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: sam-builds-contact-staging
-      AccessControl: Private
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: True
-        BlockPublicPolicy: True
-        IgnorePublicAcls: True
-        RestrictPublicBuckets: True
-      LifecycleConfiguration:
-        Rules:
-          - Id: Builds expiration
-            AbortIncompleteMultipartUpload:
-              DaysAfterInitiation: 7
-            ExpirationInDays: 60
-            Prefix: sam-builds-contact-staging*
-            Status: Enabled
-
-  ContactProdBuildsBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: sam-builds-contact-prod
-      AccessControl: Private
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: True
-        BlockPublicPolicy: True
-        IgnorePublicAcls: True
-        RestrictPublicBuckets: True
-      LifecycleConfiguration:
-        Rules:
-          - Id: Builds expiration
-            AbortIncompleteMultipartUpload:
-              DaysAfterInitiation: 7
-            ExpirationInDays: 60
-            Prefix: sam-builds-contact-prod*
-            Status: Enabled
-
 
   PipelineRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub '${PipelineName}-pipeline-ServiceRole'
+      RoleName: !Sub 'pipeline-${PipelineName}-ServiceRole'
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -253,10 +176,10 @@ Resources:
                   - codebuild:StartBuild
                 Resource: "*"
 
-  WebStackCFNRole:
+  MainStackCFNRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub '${PipelineName}-pipeline-CloudFormationRole'
+      RoleName: !Sub 'pipeline-${PipelineName}-MainStackCFN-Role'
       AssumeRolePolicyDocument:
         Statement:
         - Action: ['sts:AssumeRole']
@@ -367,14 +290,10 @@ Resources:
                 Effect: Allow
                 Resource:
                   - "arn:aws:s3:::web-pipeline-artifacts/*"
-                  - "arn:aws:s3:::sam-builds-lists-staging/*"
-                  - "arn:aws:s3:::sam-builds-lists-prod/*"
-                  - "arn:aws:s3:::sam-builds-notfound-staging/*"
-                  - "arn:aws:s3:::sam-builds-notfound-prod/*"
-                  - "arn:aws:s3:::sam-builds-products-staging/*"
-                  - "arn:aws:s3:::sam-builds-products-prod/*"
-                  - "arn:aws:s3:::sam-builds-contact-staging/*"
-                  - "arn:aws:s3:::sam-builds-contact-prod/*"
+                  - "arn:aws:s3:::services-builds-lists/*"
+                  - "arn:aws:s3:::services-builds-notfound/*"
+                  - "arn:aws:s3:::services-builds-products/*"
+                  - "arn:aws:s3:::services-builds-contact/*"
                   - "arn:aws:s3:::cognito-ewelists-backups-staging"
                   - "arn:aws:s3:::cognito-ewelists-backups-prod"
                   - "arn:aws:s3:::cognito-ewelists-backups-staging/*"
@@ -457,7 +376,7 @@ Resources:
                 Effect: Allow
                 Resource: '*'
 
-  InfraWebhook:
+  MainWebhook:
     Type: AWS::CodePipeline::Webhook
     Properties:
       Authentication: GITHUB_HMAC
@@ -468,12 +387,12 @@ Resources:
           JsonPath: "$.ref"
           MatchEquals: refs/heads/{Branch}
       TargetPipeline: !Ref Pipeline
-      TargetAction: InfraTemplates
-      Name: InfraWebhook
+      TargetAction: Main
+      Name: MainWebhook
       TargetPipelineVersion: !GetAtt Pipeline.Version
       RegisterWithThirdParty: true
 
-  ContentWebhook:
+  WebWebhook:
     Type: AWS::CodePipeline::Webhook
     Properties:
       Authentication: GITHUB_HMAC
@@ -484,12 +403,12 @@ Resources:
           JsonPath: "$.ref"
           MatchEquals: refs/heads/{Branch}
       TargetPipeline: !Ref Pipeline
-      TargetAction: Content
-      Name: ContentWebhook
+      TargetAction: Web
+      Name: WebWebhook
       TargetPipelineVersion: !GetAtt Pipeline.Version
       RegisterWithThirdParty: true
 
-  ApiServicesWebhook:
+  ServicesWebhook:
     Type: AWS::CodePipeline::Webhook
     Properties:
       Authentication: GITHUB_HMAC
@@ -500,15 +419,15 @@ Resources:
           JsonPath: "$.ref"
           MatchEquals: refs/heads/{Branch}
       TargetPipeline: !Ref Pipeline
-      TargetAction: ApiServices
-      Name: ApiServicesWebhook
+      TargetAction: Services
+      Name: ServicesWebhook
       TargetPipelineVersion: !GetAtt Pipeline.Version
       RegisterWithThirdParty: true
 
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
-      Name: !Sub '${PipelineName}-pipeline'
+      Name: !Ref PipelineName
       RoleArn: !GetAtt PipelineRole.Arn
       ArtifactStore:
         Type: S3
@@ -516,14 +435,14 @@ Resources:
       Stages:
         - Name: Source
           Actions:
-            - Name: InfraTemplates
+            - Name: Main
               ActionTypeId:
                 Category: Source
                 Owner: ThirdParty
                 Version: '1'
                 Provider: GitHub
               OutputArtifacts:
-              - Name: TemplateAF
+              - Name: S-Main
               Configuration:
                 Owner: !Ref GitHubUser
                 Repo: !Ref GitHubInfraRepo
@@ -531,14 +450,14 @@ Resources:
                 OAuthToken: !Ref GitHubToken
                 PollForSourceChanges: false
               RunOrder: 1
-            - Name: Content
+            - Name: Web
               ActionTypeId:
                 Category: Source
                 Owner: ThirdParty
                 Version: '1'
                 Provider: GitHub
               OutputArtifacts:
-              - Name: ContentAF
+              - Name: S-Web
               Configuration:
                 Owner: !Ref GitHubUser
                 Repo: !Ref GitHubContentRepo
@@ -546,14 +465,14 @@ Resources:
                 OAuthToken: !Ref GitHubToken
                 PollForSourceChanges: false
               RunOrder: 1
-            - Name: ApiServices
+            - Name: Services
               ActionTypeId:
                 Category: Source
                 Owner: ThirdParty
                 Version: '1'
                 Provider: GitHub
               OutputArtifacts:
-              - Name: ServiceAF
+              - Name: S-Services
               Configuration:
                 Owner: !Ref GitHubUser
                 Repo: !Ref GitHubServicesRepo
@@ -563,230 +482,230 @@ Resources:
               RunOrder: 1
         - Name: Build
           Actions:
-            - Name: CodeBuild
+            - Name: Services-Build
               ActionTypeId:
                 Category: Build
                 Owner: AWS
                 Provider: CodeBuild
                 Version: "1"
               Configuration:
-                ProjectName: !Ref SamBuildsCodeBuildProject
+                ProjectName: !Ref ServicesBuildProject
               InputArtifacts:
-                - Name: ServiceAF
+                - Name: S-Services
               OutputArtifacts:
-                - Name: SamBuildAF
-            - Name: UnitTests
+                - Name: B-Services
+            - Name: Services-UnitTests
               ActionTypeId:
                 Category: Test
                 Owner: AWS
                 Provider: CodeBuild
                 Version: "1"
               Configuration:
-                ProjectName: !Ref UnitTestsCodeBuildProject
+                ProjectName: !Ref ServicesUnitTestsProject
               InputArtifacts:
-                - Name: ServiceAF
+                - Name: S-Services
         - Name: Staging
           Actions:
-            - Name: DeployStack
+            - Name: Deploy-Main
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
                 Provider: CloudFormation
                 Version: '1'
               InputArtifacts:
-                - Name: TemplateAF
+                - Name: S-Main
               Configuration:
                 ActionMode: CREATE_UPDATE
-                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                RoleArn: !GetAtt [MainStackCFNRole, Arn]
                 StackName: Web-Staging
-                TemplatePath: !Sub "TemplateAF::${WebTemplatePath}"
+                TemplatePath: !Sub "S-Main::${MainTemplatePath}"
                 ParameterOverrides: '{ "Environment": "staging" }'
               RunOrder: 1
-            - Name: DeployListsApi
+            - Name: Deploy-Services-Lists
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
                 Provider: CloudFormation
                 Version: "1"
               InputArtifacts:
-                - Name: SamBuildAF
+                - Name: B-Services
               Configuration:
                 ActionMode: CREATE_UPDATE
-                RoleArn: !GetAtt WebStackCFNRole.Arn
+                RoleArn: !GetAtt MainStackCFNRole.Arn
                 StackName: Service-Lists-Staging
-                TemplatePath: SamBuildAF::lists-packaged.yaml
+                TemplatePath: B-Services::lists-packaged.yaml
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
                 ParameterOverrides: '{ "Environment": "staging" }'
               RunOrder: 1
-            - Name: DeployNotFoundApi
+            - Name: Deploy-Services-NotFound
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
                 Provider: CloudFormation
                 Version: "1"
               InputArtifacts:
-                - Name: SamBuildAF
+                - Name: B-Services
               Configuration:
                 ActionMode: CREATE_UPDATE
-                RoleArn: !GetAtt WebStackCFNRole.Arn
+                RoleArn: !GetAtt MainStackCFNRole.Arn
                 StackName: Service-NotFound-Staging
-                TemplatePath: SamBuildAF::notfound-packaged.yaml
+                TemplatePath: B-Services::notfound-packaged.yaml
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
                 ParameterOverrides: '{ "Environment": "staging" }'
               RunOrder: 1
-            - Name: DeployProductsApi
+            - Name: Deploy-Services-Products
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
                 Provider: CloudFormation
                 Version: "1"
               InputArtifacts:
-                - Name: SamBuildAF
+                - Name: B-Services
               Configuration:
                 ActionMode: CREATE_UPDATE
-                RoleArn: !GetAtt WebStackCFNRole.Arn
+                RoleArn: !GetAtt MainStackCFNRole.Arn
                 StackName: Service-Products-Staging
-                TemplatePath: SamBuildAF::products-packaged.yaml
+                TemplatePath: B-Services::products-packaged.yaml
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
                 ParameterOverrides: '{ "Environment": "staging" }'
               RunOrder: 1
-            - Name: DeployContactApi
+            - Name: Deploy-Services-Contact
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
                 Provider: CloudFormation
                 Version: "1"
               InputArtifacts:
-                - Name: SamBuildAF
+                - Name: B-Services
               Configuration:
                 ActionMode: CREATE_UPDATE
-                RoleArn: !GetAtt WebStackCFNRole.Arn
+                RoleArn: !GetAtt MainStackCFNRole.Arn
                 StackName: Service-Contact-Staging
-                TemplatePath: SamBuildAF::contact-packaged.yaml
+                TemplatePath: B-Services::contact-packaged.yaml
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
                 ParameterOverrides: '{ "Environment": "staging" }'
               RunOrder: 1
-            - Name: PostmanTests
+            - Name: Services-Integration-Tests
               ActionTypeId:
                 Category: Build
                 Owner: AWS
                 Version: '1'
                 Provider: CodeBuild
               InputArtifacts:
-                - Name: ServiceAF
+                - Name: S-Services
               Configuration:
-                ProjectName: !Sub ${PipelineName}-Postman
+                ProjectName: !Ref ServicesIntegrationTestsProject
                 EnvironmentVariables: '[{"name":"ENVIRONMENT_ID","value":"/Postman/Environment/Staging","type":"PARAMETER_STORE"}]'
               RunOrder: 2
-            - Name: ReactDeploy
+            - Name: Deploy-Web
               ActionTypeId:
                 Category: Build
                 Owner: AWS
                 Version: '1'
                 Provider: CodeBuild
               InputArtifacts:
-                - Name: ContentAF
+                - Name: S-Web
               OutputArtifacts:
-                - Name: ReactStag
+                - Name: D-Web-Staging
               Configuration:
-                ProjectName: !Ref ReactCodeBuildProject
+                ProjectName: !Ref WebDeployContentProject
                 EnvironmentVariables: !Sub '[{"name":"ENVIRONMENT","value":"staging","type":"PLAINTEXT"},
                 {"name":"WEB_BUCKET","value":"staging.${WebBucketName}","type":"PLAINTEXT"}]'
               RunOrder: 3
         - Name: Production
           Actions:
-            - Name: ChangeSetWeb
+            - Name: CS-Main
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
                 Provider: CloudFormation
                 Version: '1'
               InputArtifacts:
-                - Name: TemplateAF
+                - Name: S-Main
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
-                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                RoleArn: !GetAtt [MainStackCFNRole, Arn]
                 StackName: Web-Prod
                 ChangeSetName: Web-Prod-ChangeSet
-                TemplatePath: !Sub "TemplateAF::${WebTemplatePath}"
+                TemplatePath: !Sub "S-Main::${MainTemplatePath}"
                 ParameterOverrides: '{ "Environment": "prod" }'
               RunOrder: 1
-            - Name: ChangeSetLists
+            - Name: CS-Services-Lists
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
                 Provider: CloudFormation
                 Version: '1'
               InputArtifacts:
-                - Name: SamBuildAF
+                - Name: B-Services
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
-                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                RoleArn: !GetAtt [MainStackCFNRole, Arn]
                 StackName: Service-Lists-Prod
                 ChangeSetName: Service-Lists-Prod-ChangeSet
-                TemplatePath: SamBuildAF::lists-packaged.yaml
+                TemplatePath: B-Services::lists-packaged.yaml
                 ParameterOverrides: '{ "Environment": "prod" }'
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
               RunOrder: 1
-            - Name: ChangeSetNotFound
+            - Name: CS-Services-NotFound
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
                 Provider: CloudFormation
                 Version: '1'
               InputArtifacts:
-                - Name: SamBuildAF
+                - Name: B-Services
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
-                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                RoleArn: !GetAtt [MainStackCFNRole, Arn]
                 StackName: Service-NotFound-Prod
                 ChangeSetName: Service-NotFound-Prod-ChangeSet
-                TemplatePath: SamBuildAF::notfound-packaged.yaml
+                TemplatePath: B-Services::notfound-packaged.yaml
                 ParameterOverrides: '{ "Environment": "prod" }'
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
               RunOrder: 1
-            - Name: ChangeSetProducts
+            - Name: CS-Services-Products
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
                 Provider: CloudFormation
                 Version: '1'
               InputArtifacts:
-                - Name: SamBuildAF
+                - Name: B-Services
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
-                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                RoleArn: !GetAtt [MainStackCFNRole, Arn]
                 StackName: Service-Products-Prod
                 ChangeSetName: Service-Products-Prod-ChangeSet
-                TemplatePath: SamBuildAF::products-packaged.yaml
+                TemplatePath: B-Services::products-packaged.yaml
                 ParameterOverrides: '{ "Environment": "prod" }'
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
               RunOrder: 1
-            - Name: ChangeSetContact
+            - Name: CS-Services-Contact
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
                 Provider: CloudFormation
                 Version: '1'
               InputArtifacts:
-                - Name: SamBuildAF
+                - Name: B-Services
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
-                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                RoleArn: !GetAtt [MainStackCFNRole, Arn]
                 StackName: Service-Contact-Prod
                 ChangeSetName: Service-Contact-Prod-ChangeSet
-                TemplatePath: SamBuildAF::contact-packaged.yaml
+                TemplatePath: B-Services::contact-packaged.yaml
                 ParameterOverrides: '{ "Environment": "prod" }'
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
               RunOrder: 1
-            - Name: ApproveDeploy
+            - Name: Approve-Deploy
               ActionTypeId:
                 Category: Approval
                 Owner: AWS
                 Provider: Manual
                 Version: '1'
               RunOrder: 2
-            - Name: DeployWeb
+            - Name: Deploy-Main
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
@@ -795,10 +714,10 @@ Resources:
               Configuration:
                 ActionMode: CHANGE_SET_EXECUTE
                 ChangeSetName: Web-Prod-ChangeSet
-                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                RoleArn: !GetAtt [MainStackCFNRole, Arn]
                 StackName: Web-Prod
               RunOrder: 3
-            - Name: DeployLists
+            - Name: Deploy-Services-Lists
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
@@ -807,11 +726,11 @@ Resources:
               Configuration:
                 ActionMode: CHANGE_SET_EXECUTE
                 ChangeSetName: Service-Lists-Prod-ChangeSet
-                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                RoleArn: !GetAtt [MainStackCFNRole, Arn]
                 StackName: Service-Lists-Prod
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
               RunOrder: 3
-            - Name: DeployNotFound
+            - Name: Deploy-Services-NotFound
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
@@ -820,11 +739,11 @@ Resources:
               Configuration:
                 ActionMode: CHANGE_SET_EXECUTE
                 ChangeSetName: Service-NotFound-Prod-ChangeSet
-                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                RoleArn: !GetAtt [MainStackCFNRole, Arn]
                 StackName: Service-NotFound-Prod
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
               RunOrder: 3
-            - Name: DeployProducts
+            - Name: Deploy-Services-Products
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
@@ -833,11 +752,11 @@ Resources:
               Configuration:
                 ActionMode: CHANGE_SET_EXECUTE
                 ChangeSetName: Service-Products-Prod-ChangeSet
-                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                RoleArn: !GetAtt [MainStackCFNRole, Arn]
                 StackName: Service-Products-Prod
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
               RunOrder: 3
-            - Name: DeployContact
+            - Name: Deploy-Services-Contact
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
@@ -846,45 +765,45 @@ Resources:
               Configuration:
                 ActionMode: CHANGE_SET_EXECUTE
                 ChangeSetName: Service-Contact-Prod-ChangeSet
-                RoleArn: !GetAtt [WebStackCFNRole, Arn]
+                RoleArn: !GetAtt [MainStackCFNRole, Arn]
                 StackName: Service-Contact-Prod
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
               RunOrder: 3
-            - Name: PostmanTests
+            - Name: Services-Integration-Tests
               ActionTypeId:
                 Category: Build
                 Owner: AWS
                 Version: '1'
                 Provider: CodeBuild
               InputArtifacts:
-                - Name: ServiceAF
+                - Name: S-Services
               Configuration:
-                ProjectName: !Sub ${PipelineName}-Postman
+                ProjectName: !Ref ServicesIntegrationTestsProject
                 EnvironmentVariables: '[{"name":"ENVIRONMENT_ID","value":"/Postman/Environment/Prod","type":"PARAMETER_STORE"}]'
               RunOrder: 4
-            - Name: ReactDeploy
+            - Name: Deploy-Web
               ActionTypeId:
                 Category: Build
                 Owner: AWS
                 Version: '1'
                 Provider: CodeBuild
               InputArtifacts:
-                - Name: ContentAF
+                - Name: S-Web
               OutputArtifacts:
-                - Name: ReactProd
+                - Name: D-Web-Prod
               Configuration:
-                ProjectName: !Ref ReactCodeBuildProject
+                ProjectName: !Ref WebDeployContentProject
                 EnvironmentVariables: !Sub '[{"name":"ENVIRONMENT","value":"prod","type":"PLAINTEXT"},
                 {"name":"WEB_BUCKET","value":"${WebBucketName}","type":"PLAINTEXT"}]'
               RunOrder: 5
 
-  SamBuildsCodeBuildProject:
+  ServicesBuildProject:
     Type: AWS::CodeBuild::Project
-    DependsOn: SamBuildLogsGroup
+    DependsOn: ServicesLogGroup
     Properties:
-      Name: !Sub ${PipelineName}-Serverless-Builds
-      Description: Builds SAM Serverless Applications
-      ServiceRole: !GetAtt SamBuildsRole.Arn
+      Name: Services-API-Builds
+      Description: Builds Services repo APIs
+      ServiceRole: !GetAtt ServicesBuildRole.Arn
       Artifacts:
         Type: CODEPIPELINE
       Cache:
@@ -897,30 +816,30 @@ Resources:
         Image: aws/codebuild/standard:1.0
         EnvironmentVariables:
           - Name: LISTS_BUILD_OUTPUT_BUCKET
-            Value: !Ref ListsStagingBuildsBucket
+            Value: !Ref ListsBuildsBucket
           - Name: NOTFOUND_BUILD_OUTPUT_BUCKET
-            Value: !Ref NotFoundStagingBuildsBucket
+            Value: !Ref NotFoundBuildsBucket
           - Name: PRODUCTS_BUILD_OUTPUT_BUCKET
-            Value: !Ref ProductsStagingBuildsBucket
+            Value: !Ref ProductsBuildsBucket
           - Name: CONTACT_BUILD_OUTPUT_BUCKET
-            Value: !Ref ContactStagingBuildsBucket
+            Value: !Ref ContactBuildsBucket
       Source:
         Type: CODEPIPELINE
         BuildSpec: buildspec.yaml
       LogsConfig:
         CloudWatchLogs:
           Status: ENABLED
-          GroupName: !Sub ${PipelineName}-sambuildlogs
-          StreamName: SamStagingBuilds
+          GroupName: services-logs
+          StreamName: Builds
       TimeoutInMinutes: 10
 
-  UnitTestsCodeBuildProject:
+  ServicesUnitTestsProject:
     Type: AWS::CodeBuild::Project
-    DependsOn: UnitTestsLogsGroup
+    DependsOn: ServicesLogGroup
     Properties:
-      Name: !Sub ${PipelineName}-UnitTests
+      Name: Services-UnitTests
       Description: Performs the unit testing of the lambda functions.
-      ServiceRole: !GetAtt SamBuildsRole.Arn
+      ServiceRole: !GetAtt ServicesBuildRole.Arn
       Artifacts:
         Type: CODEPIPELINE
       Cache:
@@ -937,15 +856,15 @@ Resources:
       LogsConfig:
         CloudWatchLogs:
           Status: ENABLED
-          GroupName: !Sub ${PipelineName}-unittestlogs
+          GroupName: services-logs
           StreamName: UnitTests
       TimeoutInMinutes: 10
 
-  PostmanCodeBuildProject:
-    DependsOn: PostmanBuildLogsGroup
+  ServicesIntegrationTestsProject:
+    DependsOn: ServicesLogGroup
     Type: 'AWS::CodeBuild::Project'
     Properties:
-      Name: !Sub ${PipelineName}-Postman
+      Name: Services-Integration-Tests
       Description: Performs integration testing via Postman API.
       Artifacts:
         Type: CODEPIPELINE
@@ -957,21 +876,72 @@ Resources:
         Type: LINUX_CONTAINER
         ComputeType: BUILD_GENERAL1_SMALL
         Image: 'aws/codebuild/standard:2.0'
-      ServiceRole: !GetAtt PostmanBuildsRole.Arn
+      ServiceRole: !GetAtt ServicesBuildRole.Arn
       Source:
         Type: CODEPIPELINE
         BuildSpec: buildspec-postman.yaml
       LogsConfig:
         CloudWatchLogs:
           Status: ENABLED
-          GroupName: !Sub ${PipelineName}-postman
-          StreamName: PostmanTests
+          GroupName: services-logs
+          StreamName: Integration-Tests
 
-  ReactCodeBuildProject:
+  ServicesBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ServicesBuildAndTestRole
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - codebuild.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: ServicesRolePolicy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource:
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:services-logs"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:services-logs:*"
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:GetBucketAcl
+              - s3:GetBucketLocation
+            Resource:
+              - !Sub "arn:aws:s3:::${PipelineArtifactBucket}/*"
+              - "arn:aws:s3:::services-builds-lists/*"
+              - "arn:aws:s3:::services-builds-notfound/*"
+              - "arn:aws:s3:::services-builds-products/*"
+              - "arn:aws:s3:::services-builds-contact/*"
+          - Effect: Allow
+            Action:
+              - ssm:GetParameters
+            Resource:
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/Postman/*"
+          Version: '2012-10-17'
+
+  ServicesLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: services-logs
+      RetentionInDays: 30
+
+  WebDeployContentProject:
     Type: 'AWS::CodeBuild::Project'
     Properties:
-      Name: !Sub ${PipelineName}-ReactBuild
-      Description: Builds react web application
+      Name: Web-Deploy-Content
+      Description: Deploys react web application
       Artifacts:
         Type: CODEPIPELINE
       Cache:
@@ -987,44 +957,26 @@ Resources:
             Value: !Ref WebBucketName
           - Name: ENVIRONMENT
             Value: prod
-      ServiceRole: !GetAtt ReactBuildsRole.Arn
+      ServiceRole: !GetAtt WebDeployContentRole.Arn
       Source:
         Type: CODEPIPELINE
         BuildSpec: buildspec-react.yaml
       LogsConfig:
         CloudWatchLogs:
           Status: ENABLED
-          GroupName: !Sub ${PipelineName}-reactbuild
-          StreamName: ReactBuild
+          GroupName: web
+          StreamName: DeployContent
 
-  SamBuildLogsGroup:
+  WebDeployContentLogsGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub ${PipelineName}-sambuildlogs
+      LogGroupName: web
       RetentionInDays: 30
 
-  UnitTestsLogsGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub ${PipelineName}-unittestlogs
-      RetentionInDays: 30
-
-  PostmanBuildLogsGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub ${PipelineName}-postman
-      RetentionInDays: 30
-
-  ReactBuildLogsGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub ${PipelineName}-reactbuild
-      RetentionInDays: 30
-
-  SamBuildsRole:
+  WebDeployContentRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub '${PipelineName}-SamBuildsRole'
+      RoleName: WebDeployContentRole
       AssumeRolePolicyDocument:
         Statement:
         - Effect: Allow
@@ -1035,7 +987,7 @@ Resources:
           - sts:AssumeRole
       Path: "/"
       Policies:
-      - PolicyName: BuildServiceRolePolicy
+      - PolicyName: WebDeployContentRolePolicy
         PolicyDocument:
           Statement:
           - Effect: Allow
@@ -1044,96 +996,8 @@ Resources:
               - logs:CreateLogStream
               - logs:PutLogEvents
             Resource:
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-sambuildlogs"
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-sambuildlogs:*"
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-unittestlogs"
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-unittestlogs:*"
-          - Effect: Allow
-            Action:
-              - s3:PutObject
-              - s3:GetObject
-              - s3:GetObjectVersion
-              - s3:GetBucketAcl
-              - s3:GetBucketLocation
-            Resource:
-              - !Sub "arn:aws:s3:::${PipelineArtifactBucket}/*"
-              - "arn:aws:s3:::sam-builds-lists-staging/*"
-              - "arn:aws:s3:::sam-builds-lists-prod/*"
-              - "arn:aws:s3:::sam-builds-notfound-staging/*"
-              - "arn:aws:s3:::sam-builds-notfound-prod/*"
-              - "arn:aws:s3:::sam-builds-products-staging/*"
-              - "arn:aws:s3:::sam-builds-products-prod/*"
-              - "arn:aws:s3:::sam-builds-contact-staging/*"
-              - "arn:aws:s3:::sam-builds-contact-prod/*"
-          Version: '2012-10-17'
-
-  PostmanBuildsRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub '${PipelineName}-PostmanTestsRole'
-      AssumeRolePolicyDocument:
-        Statement:
-        - Effect: Allow
-          Principal:
-            Service:
-            - codebuild.amazonaws.com
-          Action:
-          - sts:AssumeRole
-      Path: "/"
-      Policies:
-      - PolicyName: BuildServiceRolePolicy
-        PolicyDocument:
-          Statement:
-          - Effect: Allow
-            Action:
-              - logs:CreateLogGroup
-              - logs:CreateLogStream
-              - logs:PutLogEvents
-            Resource:
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-postman"
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-postman:*"
-          - Effect: Allow
-            Action:
-              - s3:DeleteObject
-              - s3:PutObject
-              - s3:GetObject
-              - s3:GetObjectVersion
-              - s3:GetBucketVersioning
-              - s3:ListBucket
-            Resource:
-              - !Sub "arn:aws:s3:::${PipelineArtifactBucket}/*"
-          - Effect: Allow
-            Action:
-              - ssm:GetParameters
-            Resource:
-              - "*"
-          Version: '2012-10-17'
-
-  ReactBuildsRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub '${PipelineName}-ReactBuilds-Role'
-      AssumeRolePolicyDocument:
-        Statement:
-        - Effect: Allow
-          Principal:
-            Service:
-            - codebuild.amazonaws.com
-          Action:
-          - sts:AssumeRole
-      Path: "/"
-      Policies:
-      - PolicyName: BuildServiceRolePolicy
-        PolicyDocument:
-          Statement:
-          - Effect: Allow
-            Action:
-              - logs:CreateLogGroup
-              - logs:CreateLogStream
-              - logs:PutLogEvents
-            Resource:
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-reactbuild"
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${PipelineName}-reactbuild:*"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:web"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:web:*"
           - Effect: Allow
             Action:
               - s3:DeleteObject
