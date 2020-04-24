@@ -63,6 +63,17 @@ Resources:
             Prefix: !Sub 'pipeline-${PipelineName}-artifacts*'
             Status: Enabled
 
+  EmailTemplatesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: services-email-templates
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+
   ListsBuildsBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -376,6 +387,54 @@ Resources:
                 Effect: Allow
                 Resource: '*'
 
+  EmailStackCFNRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'pipeline-${PipelineName}-EmailStackCFN-Role'
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: ['sts:AssumeRole']
+          Effect: Allow
+          Principal:
+            Service: [cloudformation.amazonaws.com]
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+        - PolicyName: ManageCloudFormation
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:CreateStack
+                  - cloudformation:CreateUploadBucket
+                  - cloudformation:DeleteStack
+                  - cloudformation:Describe*
+                  - cloudformation:List*
+                  - cloudformation:UpdateStack
+                  - cloudformation:ValidateTemplate
+                  - cloudformation:ExecuteChangeSet
+                Effect: Allow
+                Resource: '*'
+        - PolicyName: ManageS3
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - s3:GetObject
+                Effect: Allow
+                Resource:
+                  - "arn:aws:s3:::services-email-templates/*"
+        - PolicyName: ManageSES
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - ses:*
+                Effect: Allow
+                Resource:
+                  - "*"
+
   MainWebhook:
     Type: AWS::CodePipeline::Webhook
     Properties:
@@ -521,6 +580,21 @@ Resources:
                 TemplatePath: !Sub "S-Main::${MainTemplatePath}"
                 ParameterOverrides: '{ "Environment": "staging" }'
               RunOrder: 1
+            - Name: Deploy-Services-Emails
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              InputArtifacts:
+                - Name: S-Services
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                RoleArn: !GetAtt [EmailStackCFNRole, Arn]
+                StackName: Email-Templates-Staging
+                TemplatePath: S-Services::cloudformation/email-templates-master-stack.yaml
+                ParameterOverrides: '{ "Environment": "staging" }'
+              RunOrder: 1
             - Name: Deploy-Services-Lists
               ActionTypeId:
                 Category: Deploy
@@ -630,6 +704,22 @@ Resources:
                 TemplatePath: !Sub "S-Main::${MainTemplatePath}"
                 ParameterOverrides: '{ "Environment": "prod" }'
               RunOrder: 1
+            - Name: CS-Services-Emails
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              InputArtifacts:
+                - Name: S-Services
+              Configuration:
+                ActionMode: CHANGE_SET_REPLACE
+                RoleArn: !GetAtt [EmailStackCFNRole, Arn]
+                StackName: Email-Templates-Prod
+                ChangeSetName: Email-Prod-ChangeSet
+                TemplatePath: S-Services::cloudformation/email-templates-master-stack.yaml
+                ParameterOverrides: '{ "Environment": "prod" }'
+              RunOrder: 1
             - Name: CS-Services-Lists
               ActionTypeId:
                 Category: Deploy
@@ -716,6 +806,18 @@ Resources:
                 ChangeSetName: Web-Prod-ChangeSet
                 RoleArn: !GetAtt [MainStackCFNRole, Arn]
                 StackName: Web-Prod
+              RunOrder: 3
+            - Name: Deploy-Services-Emails
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: Email-Prod-ChangeSet
+                RoleArn: !GetAtt [EmailStackCFNRole, Arn]
+                StackName: Email-Templates-Prod
               RunOrder: 3
             - Name: Deploy-Services-Lists
               ActionTypeId:
@@ -924,6 +1026,7 @@ Resources:
               - "arn:aws:s3:::services-builds-notfound/*"
               - "arn:aws:s3:::services-builds-products/*"
               - "arn:aws:s3:::services-builds-contact/*"
+              - "arn:aws:s3:::services-email-templates/*"
           - Effect: Allow
             Action:
               - ssm:GetParameters
