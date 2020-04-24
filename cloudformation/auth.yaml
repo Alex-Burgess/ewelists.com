@@ -19,7 +19,7 @@ Parameters:
   SignUpFunction:
     Type: String
     Description: Sign up function name
-    Default: lists-signup
+    # Default: lists-signup
   FacebookClientIdVersion:
     Type: String
     Default: 1
@@ -51,6 +51,7 @@ Parameters:
 Conditions:
   Prod: !Equals [ !Ref Environment, prod ]
   Staging: !Equals [ !Ref Environment, staging ]
+  HasSignupFunction: !Not [!Equals [ !Ref SignUpFunction, "" ]]
 
 Resources:
   UserPoolClient:
@@ -249,7 +250,11 @@ Resources:
       AutoVerifiedAttributes:
         - email
       LambdaConfig:
-        PreSignUp: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${SignUpFunction}-${Environment}"
+        PreSignUp:
+          !If
+            - HasSignupFunction
+            - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${SignUpFunction}-${Environment}"
+            - !Ref "AWS::NoValue"
       EmailVerificationMessage: "Thank you for signing up with Ewelists.<p></p>\n\nYour verification code is {####}."
       EmailVerificationSubject: "Verify your Ewelists account"
       EmailConfiguration:
