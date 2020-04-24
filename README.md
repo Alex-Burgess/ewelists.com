@@ -50,4 +50,7 @@ Ewelists is based on a serverless architecture, where hosting/operating costs ar
 
 ## Architecture
 
+![Main Architecture](documentation/MainArchitecture.png)
+
+
 ## Implementation Details
