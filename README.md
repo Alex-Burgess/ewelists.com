@@ -1,18 +1,28 @@
 # ewelists.com
-The main ewelists.com project
+This is the central repo and hence starting point of the documentation for this application.  There are a number of repositories that make up the full application.
+
+- [Main](https://github.com/Alex-Burgess/ewelists.com) - Infrastructure templates for deploying the application
+- [Web](https://github.com/Alex-Burgess/ewelists.com-web) - The Frontend React Application
+- [Services](https://github.com/Alex-Burgess/ewelists.com-services) - The backend APIs for the main application
+- [Admin](https://github.com/Alex-Burgess/ewelists.com-admin) - A collection of useful tools
+
 
 ## Contents
 
-1. [Test Environment](documentation/testEnvironment.md)
-1. [Deployment Pipeline](documentation/deploymentPipeline.md)
-1. [Testing](tests/overview.md)
-1. [Backups](documentation/backups.md)
-1. [Monitoring](documentation/monitoring.md)
-1. [Mail](documentation/mail.md)
-1. [Reference](documentation/reference.md)
-1. Services:
-   1. [Prerequisites](documentation/servicesPrerequisites.md)
-   1. [Lists](https://github.com/Alex-Burgess/ewelists.com-services/tree/master/Lists)
-   1. [Products](https://github.com/Alex-Burgess/ewelists.com-services/tree/master/Product)
-   1. [NotFound](https://github.com/Alex-Burgess/ewelists.com-services/tree/master/NotFound)
-   1. [Contact](https://github.com/Alex-Burgess/ewelists.com-services/tree/master/Contact)
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Implementation details](#implementation-details)
+  - [Amazon DynamoDB](#amazon-dynamodb)
+  - [Amazon API Gateway](#amazon-api-gateway)
+  - [AWS Lambda](#aws-lambda)
+- [Deploying Test Environment](#testing)
+- [Deployments to Staging and Production](#deployments)
+- [Testing](#testing)
+- [Backup Procedures](#backups)
+- [Monitoring](#monitoring)
+- [Reference](#reference)
+
+
+## Overview
+
+Ewelists is based on a serverless architecture, with a microservice API backend.
