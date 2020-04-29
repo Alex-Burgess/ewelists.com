@@ -482,6 +482,8 @@ Resources:
 
   ListsTable:
     Type: 'AWS::DynamoDB::Table'
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       TableName: !Sub "lists-${Environment}"
       AttributeDefinitions:
@@ -539,6 +541,8 @@ Resources:
 
   ProductsTable:
     Type: 'AWS::DynamoDB::Table'
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       TableName: !Sub "products-${Environment}"
       AttributeDefinitions:
@@ -562,6 +566,8 @@ Resources:
 
   NotFoundTable:
     Type: 'AWS::DynamoDB::Table'
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       TableName: !Sub "notfound-${Environment}"
       AttributeDefinitions:
