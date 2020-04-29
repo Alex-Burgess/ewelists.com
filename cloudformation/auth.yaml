@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Creates a static website using S3 for the Wild Rydes serverless web application workshop
+Description: Creates resources required for authentication, e.g. cognito user pools and federation configuration.
 
 Parameters:
   UserPoolName:
