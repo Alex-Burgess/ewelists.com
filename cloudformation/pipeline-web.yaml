@@ -42,27 +42,16 @@ Parameters:
     Default: cloudformation/web.yaml
     Description: The path of the Web stack template
     Type: String
+  EUWest1ArtifactBucketName:
+    Description: Name of the eu-west-1 artifact bucket.
+    Type: String
+    Default: pipeline-ewelists-main-eu-west-1-artifacts
+  USEast1ArtifactBucketName:
+    Description: Name of the us-east-1 artifact bucket.
+    Type: String
+    Default: pipeline-ewelists-main-us-east-1-artifacts
 
 Resources:
-  PipelineArtifactBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub 'pipeline-${PipelineName}-artifacts'
-      AccessControl: Private
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: True
-        BlockPublicPolicy: True
-        IgnorePublicAcls: True
-        RestrictPublicBuckets: True
-      LifecycleConfiguration:
-        Rules:
-          - Id: Build logs expiration
-            AbortIncompleteMultipartUpload:
-              DaysAfterInitiation: 7
-            ExpirationInDays: 180
-            Prefix: !Sub 'pipeline-${PipelineName}-artifacts*'
-            Status: Enabled
-
   EmailTemplatesBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -187,254 +176,6 @@ Resources:
                   - codebuild:StartBuild
                 Resource: "*"
 
-  MainStackCFNRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub 'pipeline-${PipelineName}-MainStackCFN-Role'
-      AssumeRolePolicyDocument:
-        Statement:
-        - Action: ['sts:AssumeRole']
-          Effect: Allow
-          Principal:
-            Service: [cloudformation.amazonaws.com]
-        Version: '2012-10-17'
-      Path: /
-      Policies:
-        - PolicyName: ManageCloudFormation
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - cloudformation:CreateStack
-                  - cloudformation:DescribeStacks
-                  - cloudformation:DeleteStack
-                  - cloudformation:UpdateStack
-                  - cloudformation:CreateChangeSet
-                  - cloudformation:ExecuteChangeSet
-                  - cloudformation:DeleteChangeSet
-                  - cloudformation:DescribeChangeSet
-                Effect: Allow
-                Resource: '*'
-        - PolicyName: SSLCertificateIdParameterStore
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - ssm:GetParameters
-                Effect: Allow
-                Resource:
-                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/ewelists.com/staging/SSLCertificateId'
-                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/ewelists.com/prod/SSLCertificateId'
-                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/CognitoUserPoolId/staging'
-                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/CognitoUserPoolId/prod'
-        - PolicyName: ManageStagingS3
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - s3:GetObject
-                  - s3:CreateBucket
-                  - s3:DeleteBucket
-                  - s3:PutBucketPublicAccessBlock
-                  - s3:PutLifecycleConfiguration
-                  - s3:PutBucketAcl
-                  - s3:GetBucketAcl
-                  - s3:PutBucketLogging
-                  - s3:PutMetricsConfiguration
-                  - s3:PutBucketWebsite
-                  - s3:PutBucketPolicy
-                  - s3:GetBucketPolicy
-                Effect: Allow
-                Resource:
-                  - "arn:aws:s3:::staging.ewelists.com"
-                  - "arn:aws:s3:::staging.ewelists.com/*"
-                  - "arn:aws:s3:::staging.ewelists.co.uk"
-                  - "arn:aws:s3:::staging.ewelists.co.uk/*"
-                  - "arn:aws:s3:::www.staging.ewelists.com"
-                  - "arn:aws:s3:::www.staging.ewelists.com/*"
-                  - "arn:aws:s3:::www.staging.ewelists.co.uk"
-                  - "arn:aws:s3:::www.staging.ewelists.co.uk/*"
-                  - "arn:aws:s3:::staging.ewelists.com-logging"
-                  - "arn:aws:s3:::staging.ewelists.com-logging/*"
-                  - "arn:aws:s3:::staging.ewelists.com-images"
-                  - "arn:aws:s3:::staging.ewelists.com-redirects"
-        - PolicyName: ManageProdS3
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - s3:GetObject
-                  - s3:CreateBucket
-                  - s3:DeleteBucket
-                  - s3:PutBucketPublicAccessBlock
-                  - s3:PutLifecycleConfiguration
-                  - s3:PutBucketAcl
-                  - s3:GetBucketAcl
-                  - s3:PutBucketLogging
-                  - s3:PutMetricsConfiguration
-                  - s3:PutBucketWebsite
-                  - s3:PutBucketPolicy
-                  - s3:GetBucketPolicy
-                Effect: Allow
-                Resource:
-                  - "arn:aws:s3:::ewelists.com"
-                  - "arn:aws:s3:::ewelists.com/*"
-                  - "arn:aws:s3:::ewelists.co.uk"
-                  - "arn:aws:s3:::ewelists.co.uk/*"
-                  - "arn:aws:s3:::www.ewelists.com"
-                  - "arn:aws:s3:::www.ewelists.com/*"
-                  - "arn:aws:s3:::www.ewelists.co.uk"
-                  - "arn:aws:s3:::www.ewelists.co.uk/*"
-                  - "arn:aws:s3:::ewelists.com-logging"
-                  - "arn:aws:s3:::ewelists.com-logging/*"
-                  - "arn:aws:s3:::ewelists.com-images"
-                  - "arn:aws:s3:::ewelists.com-redirects"
-        - PolicyName: ManagePiplineAndBuildArtifactBuckets
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - s3:GetObject
-                  - s3:CreateBucket
-                  - s3:DeleteBucket
-                  - s3:PutBucketPublicAccessBlock
-                Effect: Allow
-                Resource:
-                  - "arn:aws:s3:::web-pipeline-artifacts/*"
-                  - "arn:aws:s3:::services-builds-lists/*"
-                  - "arn:aws:s3:::services-builds-notfound/*"
-                  - "arn:aws:s3:::services-builds-products/*"
-                  - "arn:aws:s3:::services-builds-contact/*"
-                  - "arn:aws:s3:::cognito-ewelists-backups-staging"
-                  - "arn:aws:s3:::cognito-ewelists-backups-prod"
-                  - "arn:aws:s3:::cognito-ewelists-backups-staging/*"
-                  - "arn:aws:s3:::cognito-ewelists-backups-prod/*"
-        - PolicyName: ManageRoute53
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - route53:*
-                Effect: Allow
-                Resource:
-                  - "*"
-        - PolicyName: ManageCloudFront
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - cloudfront:CreateCloudFrontOriginAccessIdentity
-                  - cloudfront:CreateDistribution
-                  - cloudfront:DeleteDistribution
-                  - cloudfront:GetCloudFrontOriginAccessIdentity
-                  - cloudfront:GetCloudFrontOriginAccessIdentityConfig
-                  - cloudfront:DeleteCloudFrontOriginAccessIdentity
-                  - cloudfront:TagResource
-                  - cloudfront:GetDistribution
-                  - cloudfront:UpdateDistribution
-                  - cloudfront:UpdateCloudFrontOriginAccessIdentity
-                Effect: Allow
-                Resource:
-                  - "*"
-        - PolicyName: ManageDynamoDB
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - dynamodb:DescribeTable
-                  - dynamodb:CreateTable
-                  - dynamodb:DeleteTable
-                  - dynamodb:UpdateTable
-                  - dynamodb:DescribeContinuousBackups
-                  - dynamodb:UpdateContinuousBackups
-                Effect: Allow
-                Resource:
-                  - "arn:aws:dynamodb:*:*:table/*"
-              - Action:
-                  - dynamodb:ListTables
-                Effect: Allow
-                Resource:
-                  - "*"
-        - PolicyName: ManageIam
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - iam:ListRoles
-                  - iam:ListPolicies
-                  - iam:GetRole
-                  - iam:GetPolicy
-                  - iam:CreateRole
-                  - iam:CreatePolicy
-                  - iam:DeleteRole
-                  - iam:DeletePolicy
-                  - iam:UpdateRole
-                  - iam:AttachRolePolicy
-                  - iam:DetachRolePolicy
-                  - iam:PassRole
-                  - iam:PutRolePolicy
-                  - iam:DeleteRolePolicy
-                  - iam:getRolePolicy
-                Effect: Allow
-                Resource: '*'
-        - PolicyName: ManageServerless
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - lambda:*
-                  - apigateway:*
-                Effect: Allow
-                Resource: '*'
-
-  EmailStackCFNRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub 'pipeline-${PipelineName}-EmailStackCFN-Role'
-      AssumeRolePolicyDocument:
-        Statement:
-        - Action: ['sts:AssumeRole']
-          Effect: Allow
-          Principal:
-            Service: [cloudformation.amazonaws.com]
-        Version: '2012-10-17'
-      Path: /
-      Policies:
-        - PolicyName: ManageCloudFormation
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - cloudformation:CreateChangeSet
-                  - cloudformation:CreateStack
-                  - cloudformation:CreateUploadBucket
-                  - cloudformation:DeleteStack
-                  - cloudformation:Describe*
-                  - cloudformation:List*
-                  - cloudformation:UpdateStack
-                  - cloudformation:ValidateTemplate
-                  - cloudformation:ExecuteChangeSet
-                Effect: Allow
-                Resource: '*'
-        - PolicyName: ManageS3
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - s3:GetObject
-                Effect: Allow
-                Resource:
-                  - "arn:aws:s3:::services-email-templates/*"
-        - PolicyName: ManageSES
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - ses:*
-                Effect: Allow
-                Resource:
-                  - "*"
-
   MainWebhook:
     Type: AWS::CodePipeline::Webhook
     Properties:
@@ -488,9 +229,17 @@ Resources:
     Properties:
       Name: !Ref PipelineName
       RoleArn: !GetAtt PipelineRole.Arn
-      ArtifactStore:
-        Type: S3
-        Location: !Ref PipelineArtifactBucket
+      ArtifactStores:
+        -
+          Region: eu-west-1
+          ArtifactStore:
+            Type: S3
+            Location: !Ref EUWest1ArtifactBucketName
+        -
+          Region: us-east-1
+          ArtifactStore:
+            Type: S3
+            Location: !Ref USEast1ArtifactBucketName
       Stages:
         - Name: Source
           Actions:
@@ -575,11 +324,27 @@ Resources:
                 - Name: S-Main
               Configuration:
                 ActionMode: CREATE_UPDATE
-                RoleArn: !GetAtt [MainStackCFNRole, Arn]
+                RoleArn: !GetAtt [MainCFNRole, Arn]
                 StackName: Web-Staging
                 TemplatePath: !Sub "S-Main::${MainTemplatePath}"
                 ParameterOverrides: '{ "Environment": "staging" }'
               RunOrder: 1
+            # - Name: AmRegionDeploy
+            #   InputArtifacts:
+            #     - Name: S-Main
+            #   ActionTypeId:
+            #     Category: Deploy
+            #     Owner: AWS
+            #     Version: '1'
+            #     Provider: CloudFormation
+            #   Configuration:
+            #     ActionMode: CREATE_UPDATE
+            #     RoleArn: !GetAtt [MainStackCFNRole2, Arn]
+            #     StackName: AmTest-Staging
+            #     TemplatePath: !Sub "S-Main::cloudformation/am-test.yaml"
+            #     # ParameterOverrides: '{ "Environment": "staging" }'
+            #   RunOrder: 1
+            #   Region: us-east-1
             - Name: Deploy-Services-Emails
               ActionTypeId:
                 Category: Deploy
@@ -590,7 +355,7 @@ Resources:
                 - Name: S-Services
               Configuration:
                 ActionMode: CREATE_UPDATE
-                RoleArn: !GetAtt [EmailStackCFNRole, Arn]
+                RoleArn: !GetAtt [EmailCFNRole, Arn]
                 StackName: Email-Templates-Staging
                 TemplatePath: S-Services::cloudformation/email-templates-master-stack.yaml
                 ParameterOverrides: '{ "Environment": "staging" }'
@@ -605,7 +370,7 @@ Resources:
                 - Name: B-Services
               Configuration:
                 ActionMode: CREATE_UPDATE
-                RoleArn: !GetAtt MainStackCFNRole.Arn
+                RoleArn: !GetAtt ServicesCFNRole.Arn
                 StackName: Service-Lists-Staging
                 TemplatePath: B-Services::lists-packaged.yaml
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
@@ -621,7 +386,7 @@ Resources:
                 - Name: B-Services
               Configuration:
                 ActionMode: CREATE_UPDATE
-                RoleArn: !GetAtt MainStackCFNRole.Arn
+                RoleArn: !GetAtt ServicesCFNRole.Arn
                 StackName: Service-NotFound-Staging
                 TemplatePath: B-Services::notfound-packaged.yaml
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
@@ -637,7 +402,7 @@ Resources:
                 - Name: B-Services
               Configuration:
                 ActionMode: CREATE_UPDATE
-                RoleArn: !GetAtt MainStackCFNRole.Arn
+                RoleArn: !GetAtt ServicesCFNRole.Arn
                 StackName: Service-Products-Staging
                 TemplatePath: B-Services::products-packaged.yaml
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
@@ -653,7 +418,7 @@ Resources:
                 - Name: B-Services
               Configuration:
                 ActionMode: CREATE_UPDATE
-                RoleArn: !GetAtt MainStackCFNRole.Arn
+                RoleArn: !GetAtt ServicesCFNRole.Arn
                 StackName: Service-Contact-Staging
                 TemplatePath: B-Services::contact-packaged.yaml
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
@@ -698,7 +463,7 @@ Resources:
                 - Name: S-Main
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
-                RoleArn: !GetAtt [MainStackCFNRole, Arn]
+                RoleArn: !GetAtt [MainCFNRole, Arn]
                 StackName: Web-Prod
                 ChangeSetName: Web-Prod-ChangeSet
                 TemplatePath: !Sub "S-Main::${MainTemplatePath}"
@@ -714,7 +479,7 @@ Resources:
                 - Name: S-Services
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
-                RoleArn: !GetAtt [EmailStackCFNRole, Arn]
+                RoleArn: !GetAtt [EmailCFNRole, Arn]
                 StackName: Email-Templates-Prod
                 ChangeSetName: Email-Prod-ChangeSet
                 TemplatePath: S-Services::cloudformation/email-templates-master-stack.yaml
@@ -730,7 +495,7 @@ Resources:
                 - Name: B-Services
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
-                RoleArn: !GetAtt [MainStackCFNRole, Arn]
+                RoleArn: !GetAtt [ServicesCFNRole, Arn]
                 StackName: Service-Lists-Prod
                 ChangeSetName: Service-Lists-Prod-ChangeSet
                 TemplatePath: B-Services::lists-packaged.yaml
@@ -747,7 +512,7 @@ Resources:
                 - Name: B-Services
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
-                RoleArn: !GetAtt [MainStackCFNRole, Arn]
+                RoleArn: !GetAtt [ServicesCFNRole, Arn]
                 StackName: Service-NotFound-Prod
                 ChangeSetName: Service-NotFound-Prod-ChangeSet
                 TemplatePath: B-Services::notfound-packaged.yaml
@@ -764,7 +529,7 @@ Resources:
                 - Name: B-Services
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
-                RoleArn: !GetAtt [MainStackCFNRole, Arn]
+                RoleArn: !GetAtt [ServicesCFNRole, Arn]
                 StackName: Service-Products-Prod
                 ChangeSetName: Service-Products-Prod-ChangeSet
                 TemplatePath: B-Services::products-packaged.yaml
@@ -781,7 +546,7 @@ Resources:
                 - Name: B-Services
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
-                RoleArn: !GetAtt [MainStackCFNRole, Arn]
+                RoleArn: !GetAtt [ServicesCFNRole, Arn]
                 StackName: Service-Contact-Prod
                 ChangeSetName: Service-Contact-Prod-ChangeSet
                 TemplatePath: B-Services::contact-packaged.yaml
@@ -804,7 +569,7 @@ Resources:
               Configuration:
                 ActionMode: CHANGE_SET_EXECUTE
                 ChangeSetName: Web-Prod-ChangeSet
-                RoleArn: !GetAtt [MainStackCFNRole, Arn]
+                RoleArn: !GetAtt [MainCFNRole, Arn]
                 StackName: Web-Prod
               RunOrder: 3
             - Name: Deploy-Services-Emails
@@ -816,7 +581,7 @@ Resources:
               Configuration:
                 ActionMode: CHANGE_SET_EXECUTE
                 ChangeSetName: Email-Prod-ChangeSet
-                RoleArn: !GetAtt [EmailStackCFNRole, Arn]
+                RoleArn: !GetAtt [EmailCFNRole, Arn]
                 StackName: Email-Templates-Prod
               RunOrder: 3
             - Name: Deploy-Services-Lists
@@ -828,7 +593,7 @@ Resources:
               Configuration:
                 ActionMode: CHANGE_SET_EXECUTE
                 ChangeSetName: Service-Lists-Prod-ChangeSet
-                RoleArn: !GetAtt [MainStackCFNRole, Arn]
+                RoleArn: !GetAtt [ServicesCFNRole, Arn]
                 StackName: Service-Lists-Prod
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
               RunOrder: 3
@@ -841,7 +606,7 @@ Resources:
               Configuration:
                 ActionMode: CHANGE_SET_EXECUTE
                 ChangeSetName: Service-NotFound-Prod-ChangeSet
-                RoleArn: !GetAtt [MainStackCFNRole, Arn]
+                RoleArn: !GetAtt [ServicesCFNRole, Arn]
                 StackName: Service-NotFound-Prod
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
               RunOrder: 3
@@ -854,7 +619,7 @@ Resources:
               Configuration:
                 ActionMode: CHANGE_SET_EXECUTE
                 ChangeSetName: Service-Products-Prod-ChangeSet
-                RoleArn: !GetAtt [MainStackCFNRole, Arn]
+                RoleArn: !GetAtt [ServicesCFNRole, Arn]
                 StackName: Service-Products-Prod
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
               RunOrder: 3
@@ -867,7 +632,7 @@ Resources:
               Configuration:
                 ActionMode: CHANGE_SET_EXECUTE
                 ChangeSetName: Service-Contact-Prod-ChangeSet
-                RoleArn: !GetAtt [MainStackCFNRole, Arn]
+                RoleArn: !GetAtt [ServicesCFNRole, Arn]
                 StackName: Service-Contact-Prod
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
               RunOrder: 3
@@ -898,6 +663,271 @@ Resources:
                 EnvironmentVariables: !Sub '[{"name":"ENVIRONMENT","value":"prod","type":"PLAINTEXT"},
                 {"name":"WEB_BUCKET","value":"${WebBucketName}","type":"PLAINTEXT"}]'
               RunOrder: 5
+
+
+  MainCFNRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'pipeline-${PipelineName}-MainCFN-Role'
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: ['sts:AssumeRole']
+          Effect: Allow
+          Principal:
+            Service: [cloudformation.amazonaws.com]
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+        - PolicyName: ManageCloudFormation
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DeleteStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                Effect: Allow
+                Resource: '*'
+        - PolicyName: SSLCertificateIdParameterStore
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - ssm:GetParameters
+                Effect: Allow
+                Resource:
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/ewelists.com/staging/SSLCertificateId'
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/ewelists.com/prod/SSLCertificateId'
+        - PolicyName: ManageStagingS3
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - s3:GetObject
+                  - s3:CreateBucket
+                  - s3:DeleteBucket
+                  - s3:PutBucketPublicAccessBlock
+                  - s3:PutLifecycleConfiguration
+                  - s3:PutBucketAcl
+                  - s3:GetBucketAcl
+                  - s3:PutBucketLogging
+                  - s3:PutMetricsConfiguration
+                  - s3:PutBucketWebsite
+                  - s3:PutBucketPolicy
+                  - s3:GetBucketPolicy
+                Effect: Allow
+                Resource:
+                  - "arn:aws:s3:::staging.ewelists.com"
+                  - "arn:aws:s3:::staging.ewelists.com/*"
+                  - "arn:aws:s3:::staging.ewelists.co.uk"
+                  - "arn:aws:s3:::staging.ewelists.co.uk/*"
+                  - "arn:aws:s3:::www.staging.ewelists.com"
+                  - "arn:aws:s3:::www.staging.ewelists.com/*"
+                  - "arn:aws:s3:::www.staging.ewelists.co.uk"
+                  - "arn:aws:s3:::www.staging.ewelists.co.uk/*"
+                  - "arn:aws:s3:::staging.ewelists.com-logging"
+                  - "arn:aws:s3:::staging.ewelists.com-logging/*"
+                  - "arn:aws:s3:::staging.ewelists.com-images"
+                  - "arn:aws:s3:::staging.ewelists.com-redirects"
+        - PolicyName: ManageProdS3
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - s3:GetObject
+                  - s3:CreateBucket
+                  - s3:DeleteBucket
+                  - s3:PutBucketPublicAccessBlock
+                  - s3:PutLifecycleConfiguration
+                  - s3:PutBucketAcl
+                  - s3:GetBucketAcl
+                  - s3:PutBucketLogging
+                  - s3:PutMetricsConfiguration
+                  - s3:PutBucketWebsite
+                  - s3:PutBucketPolicy
+                  - s3:GetBucketPolicy
+                Effect: Allow
+                Resource:
+                  - "arn:aws:s3:::ewelists.com"
+                  - "arn:aws:s3:::ewelists.com/*"
+                  - "arn:aws:s3:::ewelists.co.uk"
+                  - "arn:aws:s3:::ewelists.co.uk/*"
+                  - "arn:aws:s3:::www.ewelists.com"
+                  - "arn:aws:s3:::www.ewelists.com/*"
+                  - "arn:aws:s3:::www.ewelists.co.uk"
+                  - "arn:aws:s3:::www.ewelists.co.uk/*"
+                  - "arn:aws:s3:::ewelists.com-logging"
+                  - "arn:aws:s3:::ewelists.com-logging/*"
+                  - "arn:aws:s3:::ewelists.com-images"
+                  - "arn:aws:s3:::ewelists.com-redirects"
+        - PolicyName: ManageRoute53
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - route53:*
+                Effect: Allow
+                Resource:
+                  - "*"
+        - PolicyName: ManageCloudFront
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - cloudfront:CreateCloudFrontOriginAccessIdentity
+                  - cloudfront:CreateDistribution
+                  - cloudfront:DeleteDistribution
+                  - cloudfront:GetCloudFrontOriginAccessIdentity
+                  - cloudfront:GetCloudFrontOriginAccessIdentityConfig
+                  - cloudfront:DeleteCloudFrontOriginAccessIdentity
+                  - cloudfront:TagResource
+                  - cloudfront:GetDistribution
+                  - cloudfront:UpdateDistribution
+                  - cloudfront:UpdateCloudFrontOriginAccessIdentity
+                Effect: Allow
+                Resource:
+                  - "*"
+
+
+  ServicesCFNRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'pipeline-${PipelineName}-ServicesCFN-Role'
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: ['sts:AssumeRole']
+          Effect: Allow
+          Principal:
+            Service: [cloudformation.amazonaws.com]
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+        - PolicyName: ManageCloudFormation
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DeleteStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                Effect: Allow
+                Resource: '*'
+        - PolicyName: SSLCertificateIdParameterStore
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - ssm:GetParameters
+                Effect: Allow
+                Resource:
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/CognitoUserPoolId/staging'
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/CognitoUserPoolId/prod'
+        - PolicyName: ManagePiplineAndBuildArtifactBuckets
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - s3:GetObject
+                  - s3:CreateBucket
+                  - s3:DeleteBucket
+                  - s3:PutBucketPublicAccessBlock
+                Effect: Allow
+                Resource:
+                  - "arn:aws:s3:::main-pipeline-eu-artificates-test/*"
+                  - "arn:aws:s3:::main-pipeline-us-artificates-test/*"
+                  - "arn:aws:s3:::ewelists-pipeline-test"
+                  - "arn:aws:s3:::ewelists-pipeline-test/*"
+                  - "arn:aws:s3:::web-pipeline-artifacts/*"
+                  - "arn:aws:s3:::services-builds-lists/*"
+                  - "arn:aws:s3:::services-builds-notfound/*"
+                  - "arn:aws:s3:::services-builds-products/*"
+                  - "arn:aws:s3:::services-builds-contact/*"
+        - PolicyName: ManageDynamoDB
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - dynamodb:DescribeTable
+                  - dynamodb:CreateTable
+                  - dynamodb:DeleteTable
+                  - dynamodb:UpdateTable
+                  - dynamodb:DescribeContinuousBackups
+                  - dynamodb:UpdateContinuousBackups
+                Effect: Allow
+                Resource:
+                  - "arn:aws:dynamodb:*:*:table/*"
+              - Action:
+                  - dynamodb:ListTables
+                Effect: Allow
+                Resource:
+                  - "*"
+        - PolicyName: ManageServerless
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - lambda:*
+                  - apigateway:*
+                Effect: Allow
+                Resource: '*'
+
+  EmailCFNRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'pipeline-${PipelineName}-EmailCFN-Role'
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: ['sts:AssumeRole']
+          Effect: Allow
+          Principal:
+            Service: [cloudformation.amazonaws.com]
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+        - PolicyName: ManageCloudFormation
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:CreateStack
+                  - cloudformation:CreateUploadBucket
+                  - cloudformation:DeleteStack
+                  - cloudformation:Describe*
+                  - cloudformation:List*
+                  - cloudformation:UpdateStack
+                  - cloudformation:ValidateTemplate
+                  - cloudformation:ExecuteChangeSet
+                Effect: Allow
+                Resource: '*'
+        - PolicyName: ManageS3
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - s3:GetObject
+                Effect: Allow
+                Resource:
+                  - "arn:aws:s3:::services-email-templates/*"
+        - PolicyName: ManageSES
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - ses:*
+                Effect: Allow
+                Resource:
+                  - "*"
 
   ServicesBuildProject:
     Type: AWS::CodeBuild::Project
@@ -1021,7 +1051,7 @@ Resources:
               - s3:GetBucketAcl
               - s3:GetBucketLocation
             Resource:
-              - !Sub "arn:aws:s3:::${PipelineArtifactBucket}/*"
+              - !Sub "arn:aws:s3:::${EUWest1ArtifactBucketName}/*"
               - "arn:aws:s3:::services-builds-lists/*"
               - "arn:aws:s3:::services-builds-notfound/*"
               - "arn:aws:s3:::services-builds-products/*"
@@ -1110,7 +1140,7 @@ Resources:
               - s3:GetBucketVersioning
               - s3:ListBucket
             Resource:
-              - !Sub "arn:aws:s3:::${PipelineArtifactBucket}/*"
+              - !Sub "arn:aws:s3:::${EUWest1ArtifactBucketName}/*"
               - !Sub "arn:aws:s3:::${WebBucketName}/*"
               - !Sub "arn:aws:s3:::${WebBucketName}"
               - !Sub "arn:aws:s3:::staging.${WebBucketName}/*"
