@@ -485,6 +485,17 @@ The Health Checks pipeline needs to create resources in us-east-1, as that is wh
     ```
     aws ssm put-parameter --name /CognitoUserPoolId/prod --type String --value "eu-west-1_12345678"
     ```
+1. Create pipeline artifact buckets:
+    ```
+    aws cloudformation create-stack --stack-name Pipeline-Artifacts-Main-EU \
+     --template-body file://pipeline-artifact-bucket.yaml \
+     --parameters ParameterKey=PipelineName,ParameterValue=main
+
+    aws cloudformation create-stack --stack-name Pipeline-Artifacts-Main-US \
+      --region us-east-1 \
+      --template-body file://pipeline-artifact-bucket.yaml \
+      --parameters ParameterKey=PipelineName,ParameterValue=main
+    ```
 1. **Pipeline Stack:** Create the stack, using the cli to import the oauth token from the parameter store.
     ```
     aws cloudformation create-stack --stack-name Pipeline-Web \
@@ -502,33 +513,6 @@ aws cloudformation update-stack --stack-name Pipeline-Web \
  --parameters ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text` \
    ParameterKey=GitHubSecret,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github_secret" --with-decryption --query 'Parameter.Value' --output text`
 ```
-
-### Create Health Checks CI/CD Pipeline
-Note: It is assumed that the github personal access token was created in the Create Web Pipeline steps.
-
-1. **Pipeline Stack:** Create the stack, using the cli to import the oauth token from the parameter store.
-    ```
-    aws cloudformation create-stack --stack-name Pipeline-HealthChecks \
-     --region us-east-1 \
-     --template-body file://pipeline-healthchecks.yaml \
-     --capabilities CAPABILITY_NAMED_IAM \
-     --parameters ParameterKey=StagingCloudFrontId,ParameterValue=`aws cloudformation describe-stacks --stack-name Web-Staging --query 'Stacks[].Outputs[?OutputKey==`WebCloudFrontID`].OutputValue' --output text` \
-      ParameterKey=ProdCloudFrontId,ParameterValue=`aws cloudformation describe-stacks --stack-name Web-Prod --query 'Stacks[].Outputs[?OutputKey==`WebCloudFrontID`].OutputValue' --output text` \
-      ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text`
-    ```
-1. **Validate Subscriptions:** Validate the SNS subscriptions created, by clicking on link in the emails.
-
-### Update Health Checks Pipeline
-```
-aws cloudformation update-stack --stack-name Pipeline-HealthChecks \
- --region us-east-1 \
- --template-body file://pipeline-healthchecks.yaml \
- --capabilities CAPABILITY_NAMED_IAM \
- --parameters ParameterKey=StagingCloudFrontId,ParameterValue=`aws cloudformation describe-stacks --stack-name Web-Staging --query 'Stacks[].Outputs[?OutputKey==`WebCloudFrontID`].OutputValue' --output text` \
-  ParameterKey=ProdCloudFrontId,ParameterValue=`aws cloudformation describe-stacks --stack-name Web-Prod --query 'Stacks[].Outputs[?OutputKey==`WebCloudFrontID`].OutputValue' --output text` \
-  ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text`
-```
-
 
 ## Testing
 ### Unit and Integration Testing
@@ -556,10 +540,10 @@ The pipeline creates the monitoring resources for Staging and Production.  To cr
 1. **Health Checks:** Create the health checks stack (us-east-1)
     ```
     aws cloudformation create-stack --region us-east-1 \
-     --stack-name Web-HealthChecks-Test \
-     --template-body file://web-healthchecks.yaml \
+     --stack-name Monitoring-Health-Test \
+     --template-body file://monitoring-health.yaml \
      --parameters ParameterKey=Environment,ParameterValue=test \
-      ParameterKey=CloudFrontId,ParameterValue=12345678910
+      ParameterKey=CloudFrontId,ParameterValue=ERMURB624JFBW
     ```
 1. **Confirm Subscription:** An email requesting confirmation of the subscription for the email address will be sent.  Click on the link to confirm the subscription.
 

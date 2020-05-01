@@ -456,7 +456,11 @@ Resources:
                 RoleArn: !GetAtt [MonitoringCFNRole, Arn]
                 StackName: Monitoring-Health-Staging
                 TemplatePath: !Sub "S-Main::${MonitoringTemplatePath}"
-                ParameterOverrides: !Sub '{"CloudFrontId": "E13H569UI03R20", "Environment": "staging"}'
+                ParameterOverrides: |
+                  {
+                    "CloudFrontId" : { "Fn::GetParam" : [ "D-Main-Staging", "MainOutput.json" , "WebCloudFrontID" ]},
+                    "Environment": "staging"
+                  }
               RunOrder: 3
               Region: us-east-1
         - Name: Production
@@ -574,11 +578,14 @@ Resources:
                 Owner: AWS
                 Provider: CloudFormation
                 Version: '1'
+              OutputArtifacts:
+                - Name: D-Main-Prod
               Configuration:
                 ActionMode: CHANGE_SET_EXECUTE
                 ChangeSetName: Web-Prod-ChangeSet
                 RoleArn: !GetAtt [MainCFNRole, Arn]
                 StackName: Web-Prod
+                OutputFileName: MainOutput.json
               RunOrder: 3
             - Name: Deploy-Services-Emails
               ActionTypeId:
@@ -671,7 +678,26 @@ Resources:
                 EnvironmentVariables: !Sub '[{"name":"ENVIRONMENT","value":"prod","type":"PLAINTEXT"},
                 {"name":"WEB_BUCKET","value":"${WebBucketName}","type":"PLAINTEXT"}]'
               RunOrder: 5
-
+            - Name: Deploy-Monitoring
+              InputArtifacts:
+                - Name: S-Main
+                - Name: D-Main-Prod
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: '1'
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                RoleArn: !GetAtt [MonitoringCFNRole, Arn]
+                StackName: Monitoring-Health-Prod
+                TemplatePath: !Sub "S-Main::${MonitoringTemplatePath}"
+                ParameterOverrides: |
+                  {
+                    "CloudFrontId" : { "Fn::GetParam" : [ "D-Main-Prod", "MainOutput.json" , "WebCloudFrontID" ]}
+                  }
+              RunOrder: 5
+              Region: us-east-1
 
   MainCFNRole:
     Type: AWS::IAM::Role
