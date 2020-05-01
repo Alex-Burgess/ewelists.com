@@ -454,9 +454,8 @@ Resources:
               Configuration:
                 ActionMode: CREATE_UPDATE
                 RoleArn: !GetAtt [MonitoringCFNRole, Arn]
-                StackName: AmTest-Staging
+                StackName: Monitoring-Health-Staging
                 TemplatePath: !Sub "S-Main::${MonitoringTemplatePath}"
-                # TemplatePath: !Sub "S-Main::cloudformation/monitoring-health.yaml"
                 ParameterOverrides: !Sub '{"CloudFrontId": "E13H569UI03R20", "Environment": "staging"}'
               RunOrder: 3
               Region: us-east-1
@@ -852,16 +851,33 @@ Resources:
                   - cloudformation:DescribeChangeSet
                 Effect: Allow
                 Resource: '*'
-        - PolicyName: SSLCertificateIdParameterStore
+        - PolicyName: ManageRoute53
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               - Action:
-                  - ssm:GetParameters
+                  - route53:*
                 Effect: Allow
                 Resource:
-                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/CognitoUserPoolId/staging'
-                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/CognitoUserPoolId/prod'
+                  - "*"
+        - PolicyName: ManageSNS
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - sns:*
+                Effect: Allow
+                Resource:
+                  - "*"
+        - PolicyName: ManageCloudwatchAlarms
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - cloudwatch:*
+                Effect: Allow
+                Resource:
+                  - "*"
 
   ServicesCFNRole:
     Type: AWS::IAM::Role
