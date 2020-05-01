@@ -42,6 +42,10 @@ Parameters:
     Default: cloudformation/web.yaml
     Description: The path of the Web stack template
     Type: String
+  MonitoringTemplatePath:
+    Default: cloudformation/monitoring-health.yaml
+    Description: The path of the monitoring stack template
+    Type: String
   EUWest1ArtifactBucketName:
     Description: Name of the eu-west-1 artifact bucket.
     Type: String
@@ -322,29 +326,16 @@ Resources:
                 Version: '1'
               InputArtifacts:
                 - Name: S-Main
+              OutputArtifacts:
+                - Name: D-Main-Staging
               Configuration:
                 ActionMode: CREATE_UPDATE
                 RoleArn: !GetAtt [MainCFNRole, Arn]
                 StackName: Web-Staging
                 TemplatePath: !Sub "S-Main::${MainTemplatePath}"
                 ParameterOverrides: '{ "Environment": "staging" }'
+                OutputFileName: MainOutput.json
               RunOrder: 1
-            # - Name: AmRegionDeploy
-            #   InputArtifacts:
-            #     - Name: S-Main
-            #   ActionTypeId:
-            #     Category: Deploy
-            #     Owner: AWS
-            #     Version: '1'
-            #     Provider: CloudFormation
-            #   Configuration:
-            #     ActionMode: CREATE_UPDATE
-            #     RoleArn: !GetAtt [MainStackCFNRole2, Arn]
-            #     StackName: AmTest-Staging
-            #     TemplatePath: !Sub "S-Main::cloudformation/am-test.yaml"
-            #     # ParameterOverrides: '{ "Environment": "staging" }'
-            #   RunOrder: 1
-            #   Region: us-east-1
             - Name: Deploy-Services-Emails
               ActionTypeId:
                 Category: Deploy
@@ -451,6 +442,24 @@ Resources:
                 EnvironmentVariables: !Sub '[{"name":"ENVIRONMENT","value":"staging","type":"PLAINTEXT"},
                 {"name":"WEB_BUCKET","value":"staging.${WebBucketName}","type":"PLAINTEXT"}]'
               RunOrder: 3
+            - Name: Deploy-Monitoring
+              InputArtifacts:
+                - Name: S-Main
+                - Name: D-Main-Staging
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: '1'
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                RoleArn: !GetAtt [MonitoringCFNRole, Arn]
+                StackName: AmTest-Staging
+                TemplatePath: !Sub "S-Main::${MonitoringTemplatePath}"
+                # TemplatePath: !Sub "S-Main::cloudformation/monitoring-health.yaml"
+                ParameterOverrides: !Sub '{"CloudFrontId": "E13H569UI03R20", "Environment": "staging"}'
+              RunOrder: 3
+              Region: us-east-1
         - Name: Production
           Actions:
             - Name: CS-Main
@@ -792,7 +801,67 @@ Resources:
                 Effect: Allow
                 Resource:
                   - "*"
+        # - PolicyName: ManageIam
+        #   PolicyDocument:
+        #     Version: '2012-10-17'
+        #     Statement:
+        #       - Action:
+        #           - iam:ListRoles
+        #           - iam:ListPolicies
+        #           - iam:GetRole
+        #           - iam:GetPolicy
+        #           - iam:CreateRole
+        #           - iam:CreatePolicy
+        #           - iam:DeleteRole
+        #           - iam:DeletePolicy
+        #           - iam:UpdateRole
+        #           - iam:AttachRolePolicy
+        #           - iam:DetachRolePolicy
+        #           - iam:PassRole
+        #           - iam:PutRolePolicy
+        #           - iam:DeleteRolePolicy
+        #           - iam:getRolePolicy
+        #         Effect: Allow
+        #         Resource: '*'
 
+  MonitoringCFNRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'pipeline-${PipelineName}-HealthCFN-Role'
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: ['sts:AssumeRole']
+          Effect: Allow
+          Principal:
+            Service: [cloudformation.amazonaws.com]
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+        - PolicyName: ManageCloudFormation
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DeleteStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                Effect: Allow
+                Resource: '*'
+        - PolicyName: SSLCertificateIdParameterStore
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - ssm:GetParameters
+                Effect: Allow
+                Resource:
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/CognitoUserPoolId/staging'
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/CognitoUserPoolId/prod'
 
   ServicesCFNRole:
     Type: AWS::IAM::Role
@@ -871,6 +940,28 @@ Resources:
                 Effect: Allow
                 Resource:
                   - "*"
+        - PolicyName: ManageIam
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - iam:ListRoles
+                  - iam:ListPolicies
+                  - iam:GetRole
+                  - iam:GetPolicy
+                  - iam:CreateRole
+                  - iam:CreatePolicy
+                  - iam:DeleteRole
+                  - iam:DeletePolicy
+                  - iam:UpdateRole
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:PassRole
+                  - iam:PutRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:getRolePolicy
+                Effect: Allow
+                Resource: '*'
         - PolicyName: ManageServerless
           PolicyDocument:
             Version: '2012-10-17'

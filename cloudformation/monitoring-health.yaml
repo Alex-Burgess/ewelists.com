@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: health checks for website.  Must be created in us-east-1
+Parameters:
+  DomainName:
+    Description: Domain name for website (example.com)
+    Type: String
+    AllowedPattern: "^[a-z0-9-]*.com$"
+    ConstraintDescription: Must be a web domain, ending in .com. Can include lower case letters, numbers and hypens.
+    Default: ewelists.com
+  StatusPage:
+    Description: Path of status page for website
+    Type: String
+    Default: /status.html
+  Mail:
+    Description: Email address for SNS subscription notification
+    Type: String
+    Default: contact@ewelists.com
+  CloudFrontId:
+    Description: CloudFront Distribution ID
+    Type: String
+  Environment:
+    Description: Environment type.
+    Default: prod
+    Type: String
+    AllowedValues:
+      - prod
+      - staging
+      - dev
+      - test
+    ConstraintDescription: must specify prod, staging, dev or test.
+
+Conditions:
+  Prod: !Equals [ !Ref Environment, prod ]
+
+Resources:
+  MainSiteHealthCheck:
+    Type: "AWS::Route53::HealthCheck"
+    Properties:
+      HealthCheckConfig:
+        Type: "HTTPS_STR_MATCH"
+        ResourcePath: !Ref StatusPage
+        SearchString: Status
+        FullyQualifiedDomainName: !If [Prod, !Ref DomainName, !Sub "${Environment}.${DomainName}"]
+        RequestInterval: 30
+        FailureThreshold: 1
+      HealthCheckTags:
+        -
+          Key: "Name"
+          Value: !If [Prod, !Ref DomainName, !Sub "${Environment}.${DomainName}"]
+
+  MainSiteAlarm:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmDescription: "Status Page Unavailable"
+      AlarmName: !Sub "Web-StatusPageUnavailable-${Environment}"
+      Namespace: "AWS/Route53"
+      MetricName: "HealthCheckStatus"
+      Dimensions:
+        -
+         Name: "HealthCheckId"
+         Value: !Ref MainSiteHealthCheck
+      ComparisonOperator: "LessThanThreshold"
+      Period: 60
+      EvaluationPeriods: 1
+      Statistic: "Minimum"
+      Threshold: 1.0
+      AlarmActions:
+        -
+          !Ref AlarmSNSTopic
+
+  CloudFrontRequestsAlarm:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmDescription: "CloudFront Requests Exceed 50 in 1 minute"
+      AlarmName: !Sub "Web-CloudFrontAlarm-50RequestsPerMin-${Environment}"
+      Namespace: "AWS/CloudFront"
+      MetricName: "Requests"
+      Dimensions:
+        - Name: DistributionId
+          Value: !Ref CloudFrontId
+        - Name: Region
+          Value: Global
+      ComparisonOperator: "GreaterThanOrEqualToThreshold"
+      Period: 60
+      EvaluationPeriods: 1
+      Statistic: "Sum"
+      Threshold: 50
+      AlarmActions:
+        -
+          !Ref AlarmSNSTopic
+
+  AlarmSNSTopic:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      TopicName: !Sub "Web-HealthCheckAlerts-${Environment}"
+      Subscription:
+        -
+          Endpoint: !Ref Mail
+          Protocol: "email"
