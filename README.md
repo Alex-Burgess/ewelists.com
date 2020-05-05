@@ -452,11 +452,25 @@ sam deploy \
     ```
 
 ## Deployment Pipeline
+
+**Pipeline Execution**
+
 Github is the Single source of truth for our web stack and content deployments.  Whenever there is a commit/pull request to the Master branch of either the main or web github projects, this will trigger the pipeline.
+
+Updating the Web content, means that the CloudFront cache needs to be invalidated.  This can be an expensive operation, and also can impact user performance when using the site, i.e. it will be slower if not cached. So, we want to try to avoid updating the web content unless necessary.
+
+The buildspec for the React deployment has a piece of logic to prevent web content from being updated unless necessary.  The rules are:
+- **Manual Execution:** This is determined if the pipeline execution trigger was "StartPipelineExecution" (and not "Webhook").  A manual execution of the pipeline will be the fall back to ensure that everything is deployed correctly if there is an issue.
+- **OR Web repo commit sha's different:** If the Web repo commit sha's are different between the current pipeline execution and previous pipeline execution, then there was definitely a web content update.
+- **OR Previous Pipeline State == Succeeded:** There are a number of [pipeline states](https://docs.aws.amazon.com/cli/latest/reference/codepipeline/list-pipeline-executions.html) that we may encounter. In normal operation, we may particularly see "Superseded" whilst we suspend updates to the Prod stage, which mean that we may push 4 or 5 changes across all the repo's to production at once.  So, unless the state of the previous execution was "Succeeded" we can't be sure that we haven't missed a web content update.
+
+Main repo triggers. Change this to look for the "main-release" tag.  This allows us to update the documentation, other stacks not deployed by the pipeline, or scripts, without triggering a pipeline execution.
+
+**Pipeline Exclusions**
 
 The web pipeline doesn't include SSL certificate creation, although this could be automated in the future.  Therefore there is some setup required when creating the environments for the first time.  After this the pipeline is used for all changes.  
 
-The Health Checks pipeline needs to create resources in us-east-1, as that is where the CloudFront metrics are recorded.  After hitting a brick wall with using cross-region stacks in the web-pipeline I decided to create a separate pipeline just for this stack.
+The auth and database stacks are not handled by the pipeline.
 
 ### Create Web CI/CD Pipeline
 1. **Personal Access Token:** In github developer settings, create a Personal access token, with repo and admin:repo_hook scopes.  Add the token to the parameter store.

@@ -190,6 +190,9 @@ Resources:
         -
           JsonPath: "$.ref"
           MatchEquals: refs/heads/{Branch}
+        -
+          JsonPath: "$.ref"
+          MatchEquals: refs/tags/main-release
       TargetPipeline: !Ref Pipeline
       TargetAction: Main
       Name: MainWebhook
@@ -263,6 +266,7 @@ Resources:
                 PollForSourceChanges: false
               RunOrder: 1
             - Name: Web
+              Namespace: WebSourceVariables
               ActionTypeId:
                 Category: Source
                 Owner: ThirdParty
@@ -278,6 +282,7 @@ Resources:
                 PollForSourceChanges: false
               RunOrder: 1
             - Name: Services
+              Namespace: ServicesSourceVariables
               ActionTypeId:
                 Category: Source
                 Owner: ThirdParty
@@ -439,8 +444,12 @@ Resources:
                 - Name: D-Web-Staging
               Configuration:
                 ProjectName: !Ref WebDeployContentProject
-                EnvironmentVariables: !Sub '[{"name":"ENVIRONMENT","value":"staging","type":"PLAINTEXT"},
-                {"name":"WEB_BUCKET","value":"staging.${WebBucketName}","type":"PLAINTEXT"}]'
+                EnvironmentVariables: !Sub |
+                  [
+                    {"name": "Commit_ID", "value": "#{WebSourceVariables.CommitId}", "type": "PLAINTEXT"},
+                    {"name":"ENVIRONMENT","value":"staging","type":"PLAINTEXT"},
+                    {"name":"WEB_BUCKET","value":"staging.${WebBucketName}","type":"PLAINTEXT"}
+                  ]
               RunOrder: 3
             - Name: Deploy-Monitoring
               InputArtifacts:
@@ -675,8 +684,12 @@ Resources:
                 - Name: D-Web-Prod
               Configuration:
                 ProjectName: !Ref WebDeployContentProject
-                EnvironmentVariables: !Sub '[{"name":"ENVIRONMENT","value":"prod","type":"PLAINTEXT"},
-                {"name":"WEB_BUCKET","value":"${WebBucketName}","type":"PLAINTEXT"}]'
+                EnvironmentVariables: !Sub |
+                  [
+                    {"name": "Commit_ID", "value": "#{WebSourceVariables.CommitId}", "type": "PLAINTEXT"},
+                    {"name":"ENVIRONMENT","value":"prod","type":"PLAINTEXT"},
+                    {"name":"WEB_BUCKET","value":"${WebBucketName}","type":"PLAINTEXT"}
+                  ]
               RunOrder: 5
             - Name: Deploy-Monitoring
               InputArtifacts:
@@ -1114,7 +1127,7 @@ Resources:
       Environment:
         Type: LINUX_CONTAINER
         ComputeType: BUILD_GENERAL1_SMALL
-        Image: aws/codebuild/standard:1.0
+        Image: aws/codebuild/standard:2.0
       Source:
         Type: CODEPIPELINE
         BuildSpec: buildspec-unittests.yaml
@@ -1217,7 +1230,7 @@ Resources:
       Environment:
         Type: LINUX_CONTAINER
         ComputeType: BUILD_GENERAL1_SMALL
-        Image: 'aws/codebuild/standard:2.0'
+        Image: aws/codebuild/standard:2.0
         EnvironmentVariables:
           - Name: WEB_BUCKET
             Value: !Ref WebBucketName
@@ -1282,5 +1295,9 @@ Resources:
             Action:
               - cloudfront:CreateInvalidation
               - cloudfront:ListDistributions
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - codepipeline:ListPipelineExecutions
             Resource: '*'
           Version: '2012-10-17'
