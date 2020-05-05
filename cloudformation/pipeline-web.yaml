@@ -190,9 +190,6 @@ Resources:
         -
           JsonPath: "$.ref"
           MatchEquals: refs/heads/{Branch}
-        -
-          JsonPath: "$.ref"
-          MatchEquals: refs/tags/main-release
       TargetPipeline: !Ref Pipeline
       TargetAction: Main
       Name: MainWebhook
