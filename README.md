@@ -464,6 +464,8 @@ The buildspec for the React deployment has a piece of logic to prevent web conte
 - **OR Web repo commit sha's different:** If the Web repo commit sha's are different between the current pipeline execution and previous pipeline execution, then there was definitely a web content update.
 - **OR Previous Pipeline State == Succeeded:** There are a number of [pipeline states](https://docs.aws.amazon.com/cli/latest/reference/codepipeline/list-pipeline-executions.html) that we may encounter. In normal operation, we may particularly see "Superseded" whilst we suspend updates to the Prod stage, which mean that we may push 4 or 5 changes across all the repo's to production at once.  So, unless the state of the previous execution was "Succeeded" we can't be sure that we haven't missed a web content update.
 
+If this is flakey and the pipeline skips web content updates when they should not be skipped, or we find ourselves checking manually whether the content was updated this need to be reviewed. It may be worth looking at other pipeline tools, CircleCI, seed, etc.
+
 **Future Improvements**
 The main repo is triggered whenever there is a commit to the main branch, which could be docs updates, stack updates, or script updates. Only the `web.yaml` stack is actually deployed by the pipeline, so a lot of updates are triggering the pipeline unnecessarily. The pipeline webhook does allow filters, which can be used to return the tags, like so:
 
