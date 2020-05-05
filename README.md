@@ -466,6 +466,8 @@ The buildspec for the React deployment has a piece of logic to prevent web conte
 
 Main repo triggers. Change this to look for the "main-release" tag.  This allows us to update the documentation, other stacks not deployed by the pipeline, or scripts, without triggering a pipeline execution.
 
+Test
+
 **Pipeline Exclusions**
 
 The web pipeline doesn't include SSL certificate creation, although this could be automated in the future.  Therefore there is some setup required when creating the environments for the first time.  After this the pipeline is used for all changes.  
