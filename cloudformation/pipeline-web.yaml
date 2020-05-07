@@ -517,7 +517,12 @@ Resources:
                 StackName: Service-Lists-Prod
                 ChangeSetName: Service-Lists-Prod-ChangeSet
                 TemplatePath: B-Services::lists-packaged.yaml
-                ParameterOverrides: '{ "Environment": "prod" }'
+                ParameterOverrides: |
+                  {
+                    "Environment": "prod",
+                    "PushKpis": "true",
+                    "KpiUrl": "/KPI/Lists/prod"
+                  }
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
               RunOrder: 1
             - Name: CS-Services-NotFound
@@ -836,28 +841,6 @@ Resources:
                 Effect: Allow
                 Resource:
                   - "*"
-        # - PolicyName: ManageIam
-        #   PolicyDocument:
-        #     Version: '2012-10-17'
-        #     Statement:
-        #       - Action:
-        #           - iam:ListRoles
-        #           - iam:ListPolicies
-        #           - iam:GetRole
-        #           - iam:GetPolicy
-        #           - iam:CreateRole
-        #           - iam:CreatePolicy
-        #           - iam:DeleteRole
-        #           - iam:DeletePolicy
-        #           - iam:UpdateRole
-        #           - iam:AttachRolePolicy
-        #           - iam:DetachRolePolicy
-        #           - iam:PassRole
-        #           - iam:PutRolePolicy
-        #           - iam:DeleteRolePolicy
-        #           - iam:getRolePolicy
-        #         Effect: Allow
-        #         Resource: '*'
 
   MonitoringCFNRole:
     Type: AWS::IAM::Role
@@ -1023,6 +1006,15 @@ Resources:
                   - apigateway:*
                 Effect: Allow
                 Resource: '*'
+        - PolicyName: ParameterStore
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - ssm:GetParameters
+                Effect: Allow
+                Resource:
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/KPI*'
 
   EmailCFNRole:
     Type: AWS::IAM::Role

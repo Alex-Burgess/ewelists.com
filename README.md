@@ -245,6 +245,7 @@ aws cloudformation create-stack --stack-name Database-Test \
 ```
 
 **Backed API Services**
+Latest details on setting up local python environment are in the [Services repo](https://github.com/Alex-Burgess/ewelists.com-services).
 
 1. Create an S3 Bucket for each services SAM builds
     ```
@@ -512,6 +513,10 @@ The auth and database stacks are not handled by the pipeline.
     ```
     aws ssm put-parameter --name /CognitoUserPoolId/prod --type String --value "eu-west-1_12345678"
     ```
+1. Creat the cyfe widget, and add url to parameter store:
+    ```
+    aws ssm put-parameter --name /KPI/Lists/prod --type String --value "https://app.cyfe.com/api/push/5eb26ce43ea308704280926228485"
+    ```
 1. Create pipeline artifact buckets:
     ```
     aws cloudformation create-stack --stack-name Pipeline-Artifacts-Main-EU \
@@ -615,6 +620,31 @@ Both seem to perform backup and restore.  Using cognito-backup for now.
 
 
 ## Tools
+
+**KPI Dashboard**
+
+The project uses [cyfe](https://app.cyfe.com/dashboards/934848) a dashboard web tool.  They provide a useful PushAPI widget, that makes it possible to easily integrate within the code base to push KPI data updates.
+
+Currently only the Lists service pushes KPIs, e.g. when creating a list, adding a gift, etc. The KPIs are also only turned on in the Product environment.
+
+To turn KPI pushing on in a test environment, e.g. for testing purposes:
+
+1. Add the widget to a dashboard.  Get the api url and add this to the parameter store:
+    ```
+    aws ssm put-parameter --name /KPI/Lists/test --type String --value "https://app.cyfe.com/api/push/5eb26ce43ea308704280926228485"
+    ```
+1. As part of the deploy step include the parameter:
+    ```
+    sam deploy \
+        --template-file packaged.yaml \
+        --stack-name Service-lists-test \
+        --parameter-overrides 'PushKpis=true' \
+        --capabilities CAPABILITY_NAMED_IAM
+    ```
+
+**AWS Xray**
+
+AWS x-ray is enabled for APIs and Lambda tracing.  The instrumentation features of x-ray have not been implemented inside the lambda functions at this point.
 
 **Testing Data**
 
