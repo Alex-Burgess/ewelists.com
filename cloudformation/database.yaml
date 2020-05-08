@@ -73,7 +73,7 @@ Resources:
             ProjectionType: ALL
 
   ProductsTable:
-    Type: 'AWS::DynamoDB::Table'
+    Type: AWS::DynamoDB::Table
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
@@ -98,7 +98,7 @@ Resources:
             ProjectionType: ALL
 
   NotFoundTable:
-    Type: 'AWS::DynamoDB::Table'
+    Type: AWS::DynamoDB::Table
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
@@ -112,3 +112,22 @@ Resources:
       BillingMode: PAY_PER_REQUEST
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: True
+
+Outputs:
+  ListsTable:
+    Description: Table name.
+    Value: !Ref ListsTable
+    Export:
+      Name: !Sub 'ListsTable-${Environment}'
+
+  ProductsTable:
+    Description: Table name.
+    Value: !Ref ProductsTable
+    Export:
+      Name: !Sub 'ProductsTable-${Environment}'
+
+  NotFoundTable:
+    Description: Table name.
+    Value: !Ref NotFoundTable
+    Export:
+      Name: !Sub 'NotFoundTable-${Environment}'

@@ -500,7 +500,7 @@ The auth and database stacks are not handled by the pipeline.
     ```
     aws ssm put-parameter --name /Postman/Key --type SecureString --value "PMAK-5da0....???"
     ```
-1. Add Postman Collection and Environment IDs to parameter store (See [Postman](#Postman) reference commands for retrieving IDs.):
+1. Add Postman Collection and Environment IDs to parameter store (See [Postman](https://github.com/Alex-Burgess/ewelists.com/blob/master/documentation/reference.md#postman) reference commands for retrieving IDs.):
     ```
     aws ssm put-parameter --name /Postman/Collection/Lists --type String --value "6596444-38afc6ee-????"
     aws ssm put-parameter --name /Postman/Collection/NotFound --type String --value "6596444-38afc6ee-????"
@@ -544,6 +544,32 @@ aws cloudformation update-stack --stack-name Pipeline-Web \
  --capabilities CAPABILITY_NAMED_IAM \
  --parameters ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text` \
    ParameterKey=GitHubSecret,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github_secret" --with-decryption --query 'Parameter.Value' --output text`
+```
+
+### Create Tools CI/CD Pipeline
+1. **Github Access Token:** This should already exist in the parameter store location: `/ewelists.com/github`.
+1. **Github secret:**  This should already exist in the parameter store location: `/ewelists.com/github_secret`.
+1. **Postman API Key**:  This should already exist in the parameter store location: `/Postman/Key`.
+1. **Postman Tools Collection ID:** Evironment Ids should already exist, but we need to add the Tools Collection ID (See [Postman](https://github.com/Alex-Burgess/ewelists.com/blob/master/documentation/reference.md#postman) reference commands for retrieving IDs.):
+    ```
+    aws ssm put-parameter --name /Postman/Collection/Tools --type String --value "6596444-38afc6ee-????"
+    ```
+1. **Pipeline Stack:** Create the stack, using the cli to import the oauth token from the parameter store.
+    ```
+    aws cloudformation create-stack --stack-name Pipeline-Tools \
+    --template-body file://pipeline-tools.yaml \
+    --capabilities CAPABILITY_NAMED_IAM \
+    --parameters ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text` \
+    ParameterKey=GitHubSecret,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github_secret" --with-decryption --query 'Parameter.Value' --output text`
+    ```
+
+### Update Tools Pipeline
+```
+aws cloudformation update-stack --stack-name Pipeline-Tools  \
+  --template-body file://pipeline-tools.yaml  \
+  --capabilities CAPABILITY_NAMED_IAM  \
+  --parameters ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text` \
+    ParameterKey=GitHubSecret,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github_secret" --with-decryption --query 'Parameter.Value' --output text`
 ```
 
 ## Testing
