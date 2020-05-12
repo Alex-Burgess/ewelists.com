@@ -686,3 +686,5 @@ The procedure for updating product info is available at [How to Handle Not Found
 
 ## Useful Information
 See [here](documentation/reference.md) for useful commands and procedures.
+
+See [here](documentation/blogs.md) for useful information on how to create and manage the blog articles.
