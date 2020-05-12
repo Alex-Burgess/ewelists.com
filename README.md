@@ -550,9 +550,14 @@ aws cloudformation update-stack --stack-name Pipeline-Web \
 1. **Github Access Token:** This should already exist in the parameter store location: `/ewelists.com/github`.
 1. **Github secret:**  This should already exist in the parameter store location: `/ewelists.com/github_secret`.
 1. **Postman API Key**:  This should already exist in the parameter store location: `/Postman/Key`.
-1. **Postman Tools Collection ID:** Evironment Ids should already exist, but we need to add the Tools Collection ID (See [Postman](https://github.com/Alex-Burgess/ewelists.com/blob/master/documentation/reference.md#postman) reference commands for retrieving IDs.):
+1. **Postman Tools Collection ID:** Environment Ids should already exist, but we need to add the Tools Collection ID (See [Postman](https://github.com/Alex-Burgess/ewelists.com/blob/master/documentation/reference.md#postman) reference commands for retrieving IDs.):
     ```
     aws ssm put-parameter --name /Postman/Collection/Tools --type String --value "6596444-38afc6ee-????"
+    ```
+1. **Notification parameters:** Create the parameters with email and phone number that will receive alerts:
+    ```
+    aws ssm put-parameter --name /Ewelists/AlertEmail --type String --value "contact@ewelists.com"
+    aws ssm put-parameter --name /Ewelists/AlertNumber --type String --value "+4479004*****"
     ```
 1. **Pipeline Stack:** Create the stack, using the cli to import the oauth token from the parameter store.
     ```
@@ -676,9 +681,11 @@ AWS x-ray is enabled for APIs and Lambda tracing.  The instrumentation features 
 
 Information on how to export data from a table for testing purposes is available [here](documentation/reference.md#export-prod-data-for-testing-in-test-or-staging).
 
-**Tools API**
+**Tools**
 
-There is a tools API, which currently just provides a mechanism to update the details of products not found.
+There is a tools project, which consists of helper functions.  Including:
+- A mechanism to update the details of products not found.
+- A function that periodically (every 15 minutes in production) checks if there are products in the notfound table and sends a notification if there are.
 
 The code for this API is available at the [ewelists.com-tools-backend](https://github.com/Alex-Burgess/ewelists.com-tools-backend) repository.
 

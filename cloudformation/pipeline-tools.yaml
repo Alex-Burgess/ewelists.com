@@ -438,3 +438,41 @@ Resources:
                   - apigateway:*
                 Effect: Allow
                 Resource: '*'
+        - PolicyName: ParameterStore
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - ssm:GetParameters
+                Effect: Allow
+                Resource:
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/Ewelists/AlertEmail'
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/Ewelists/AlertNumber'
+        - PolicyName: Events
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - events:*
+                Effect: Allow
+                Resource:
+                  - !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/Service-Tools*'
+        - PolicyName: SNS
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - sns:List*
+                  - sns:Get*
+                Effect: Allow
+                Resource: '*'
+              - Action:
+                  - sns:CreateTopic
+                  - sns:DeleteTopic
+                  - sns:ConfirmSubscription
+                  - sns:Set*
+                  - sns:Subscribe
+                  - sns:Unsubscribe
+                Effect: Allow
+                Resource:
+                  - !Sub 'arn:aws:sns:${AWS::Region}:${AWS::AccountId}:NotFound-Alert*'
