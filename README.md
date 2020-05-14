@@ -623,6 +623,8 @@ We backup dynamodb data and cognito user pool, so that in the event of a complet
 
 Point-in-time-recovery provides continuous backups of the table data, for the last 35 days.  See [Documentation](https://aws.amazon.com/dynamodb/backup-restore/) for more detail.
 
+The [ewelists.com-tools-backend](https://github.com/Alex-Burgess/ewelists.com-tools-backend) repository contains a backups function, which creates daily backups, which are kept for 7 days.  This helps with a wide variety of issues, including if the table is deleted by accident.
+
 ### Cognito UserPool Backup
 Cognito does not have a backup option.
 
@@ -690,6 +692,7 @@ There is a tools project, which consists of helper functions.  Including:
 The code for this API is available at the [ewelists.com-tools-backend](https://github.com/Alex-Burgess/ewelists.com-tools-backend) repository.
 
 The procedure for updating product info is available at [How to Handle Not Found Product](documentation/reference.md#how-to-handle-not-found-product)
+
 
 ## Useful Information
 See [here](documentation/reference.md) for useful commands and procedures.

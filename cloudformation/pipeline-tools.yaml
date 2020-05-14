@@ -475,4 +475,13 @@ Resources:
                   - sns:Unsubscribe
                 Effect: Allow
                 Resource:
-                  - !Sub 'arn:aws:sns:${AWS::Region}:${AWS::AccountId}:NotFound-Alert*'
+                  - !Sub 'arn:aws:sns:${AWS::Region}:${AWS::AccountId}:NotFound-*'
+                  - !Sub 'arn:aws:sns:${AWS::Region}:${AWS::AccountId}:Backup-*'
+        - PolicyName: Alarms
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - cloudwatch:*
+                Effect: Allow
+                Resource: '*'
