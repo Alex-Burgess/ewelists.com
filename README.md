@@ -222,17 +222,7 @@ The Web stack creates all the web components, except for the SSL certificate. Th
      --template-body file://auth.yaml \
      --capabilities CAPABILITY_NAMED_IAM \
      --enable-termination-protection \
-     --parameters ParameterKey=Environment,ParameterValue=test \
-        ParameterKey=SignUpFunction,ParameterValue=
-    ```
-
-1. Create SSM parameter with user pool ID, which is specified as an environment variable in the cf template for the signup lambda function.
-    ```
-    aws cloudformation describe-stacks --stack-name Auth-Test \
-     --query "Stacks[0].Outputs[?OutputKey=='userPoolId'].OutputValue" \
-     --output text
-
-    aws ssm put-parameter --name /CognitoUserPoolId/test --type String --value "eu-west-1_abcd123e4"
+     --parameters ParameterKey=Environment,ParameterValue=test
     ```
 
 **Backend Database Infrastructure**

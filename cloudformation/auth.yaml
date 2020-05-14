@@ -19,7 +19,7 @@ Parameters:
   SignUpFunction:
     Type: String
     Description: Sign up function name
-    # Default: lists-signup
+    Default: ''
   FacebookClientIdVersion:
     Type: String
     Default: 1
@@ -437,7 +437,11 @@ Resources:
 
 Outputs:
   userPoolId:
+    Description: Cognito user pool id.
     Value: !Ref UserPool
+    Export:
+      Name: !Sub 'Auth-${Environment}-UserPoolId'
+
 
   userPoolClientId:
     Value: !Ref UserPoolClient

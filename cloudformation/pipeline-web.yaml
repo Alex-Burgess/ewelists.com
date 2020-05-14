@@ -926,16 +926,6 @@ Resources:
                   - cloudformation:DescribeChangeSet
                 Effect: Allow
                 Resource: '*'
-        - PolicyName: SSLCertificateIdParameterStore
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - ssm:GetParameters
-                Effect: Allow
-                Resource:
-                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/CognitoUserPoolId/staging'
-                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/CognitoUserPoolId/prod'
         - PolicyName: ManagePiplineAndBuildArtifactBuckets
           PolicyDocument:
             Version: '2012-10-17'
