@@ -134,3 +134,7 @@ The tools for this procedure are in the [scripts](/scripts) directory.
   1. landing page
   1. Edit list page
   1. view list page
+
+## How to produce browser/device screen shots.
+https://smartmockups.com
+https://www.screely.com
