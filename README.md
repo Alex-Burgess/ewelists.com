@@ -573,11 +573,14 @@ aws cloudformation update-stack --stack-name Pipeline-Tools  \
 ### Unit and Integration Testing
 See the [Services](https://github.com/Alex-Burgess/ewelists.com-services) documentation for details on unit and integration testing.
 
-
 ### UI / Functional Testing
-1. [Cross Platform](./devices.md)
-1. [Web General](./webGeneral.md)
-1. [Authentication](./authentication.md)
+[Cypress]() is used to carry out automated testing of application UI and functionality. See [Cypress Testing](./testing/uiTesting.md)
+
+
+### UI / Functional Testing (Archive)
+1. [Cross Platform](./testing/devices.md)
+1. [Web General](./testing/webGeneral.md)
+1. [Authentication](./testing/authentication.md)
 
 ## Monitoring
 ### Availability Monitoring
