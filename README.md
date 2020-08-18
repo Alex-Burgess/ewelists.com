@@ -1,10 +1,14 @@
 # ewelists.com
-This is the central repo and hence starting point of the documentation for this application.  There are a number of repositories that make up the full application.
+This is the central repo and hence starting point of the documentation for this application.  There are a number of repositories that make up the main application.
 
-- [Main](https://github.com/Alex-Burgess/ewelists.com) - Infrastructure templates for deploying the application
+- [Main](https://github.com/Alex-Burgess/ewelists.com) - Templates to deploy the Infrastructure (e.g. Auth stack, hosted zone, web stack and pipeline
 - [Web](https://github.com/Alex-Burgess/ewelists.com-web) - The Frontend React Application
 - [Services](https://github.com/Alex-Burgess/ewelists.com-services) - The backend APIs for the main application
-- [Tools](https://github.com/Alex-Burgess/ewelists.com-tools-backend) - The beginnings of a useful tools web application.
+
+There are also some additional repositories that make up an Admin dashboard/tools application:
+- [Tools-Main](https://github.com/Alex-Burgess/ewelists.com-tools) - Templates to deploy the Infrastructure (e.g. Auth stack, hosted zone, web stack and pipeline)
+- [Tools-Web](https://github.com/Alex-Burgess/ewelists.com-tools-web) - The Frontend React Application
+- [Tools-Services](https://github.com/Alex-Burgess/ewelists.com-tools-services) - The backend APIs and functions of the tools application
 
 
 ## Contents
@@ -538,37 +542,6 @@ aws cloudformation update-stack --stack-name Pipeline-Web \
    ParameterKey=GitHubSecret,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github_secret" --with-decryption --query 'Parameter.Value' --output text`
 ```
 
-### Create Tools CI/CD Pipeline
-1. **Github Access Token:** This should already exist in the parameter store location: `/ewelists.com/github`.
-1. **Github secret:**  This should already exist in the parameter store location: `/ewelists.com/github_secret`.
-1. **Postman API Key**:  This should already exist in the parameter store location: `/Postman/Key`.
-1. **Postman Tools Collection ID:** Environment Ids should already exist, but we need to add the Tools Collection ID (See [Postman](https://github.com/Alex-Burgess/ewelists.com/blob/master/documentation/reference.md#postman) reference commands for retrieving IDs.):
-    ```
-    aws ssm put-parameter --name /Postman/Collection/Tools --type String --value "6596444-38afc6ee-????"
-    ```
-1. **Notification parameters:** Create the parameters with email and phone number that will receive alerts:
-    ```
-    aws ssm put-parameter --name /Ewelists/AlertEmail --type String --value "contact@ewelists.com"
-    aws ssm put-parameter --name /Ewelists/AlertNumber --type String --value "+4479004*****"
-    ```
-1. **Pipeline Stack:** Create the stack, using the cli to import the oauth token from the parameter store.
-    ```
-    aws cloudformation create-stack --stack-name Pipeline-Tools \
-    --template-body file://pipeline-tools.yaml \
-    --capabilities CAPABILITY_NAMED_IAM \
-    --parameters ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text` \
-    ParameterKey=GitHubSecret,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github_secret" --with-decryption --query 'Parameter.Value' --output text`
-    ```
-
-### Update Tools Pipeline
-```
-aws cloudformation update-stack --stack-name Pipeline-Tools  \
-  --template-body file://pipeline-tools.yaml  \
-  --capabilities CAPABILITY_NAMED_IAM  \
-  --parameters ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text` \
-    ParameterKey=GitHubSecret,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github_secret" --with-decryption --query 'Parameter.Value' --output text`
-```
-
 ## Testing
 ### Unit and Integration Testing
 See the [Services](https://github.com/Alex-Burgess/ewelists.com-services) documentation for details on unit and integration testing.
@@ -577,7 +550,7 @@ See the [Services](https://github.com/Alex-Burgess/ewelists.com-services) docume
 [Cypress]() is used to carry out automated testing of application UI and functionality. See [Cypress Testing](./testing/uiTesting.md)
 
 
-### UI / Functional Testing (Archive)
+### UI / Functional Testing (Manual Archive)
 1. [Cross Platform](./testing/devices.md)
 1. [Web General](./testing/webGeneral.md)
 1. [Authentication](./testing/authentication.md)
@@ -616,9 +589,9 @@ We backup dynamodb data and cognito user pool, so that in the event of a complet
 
 ### DynamoDB Backup
 
-Point-in-time-recovery provides continuous backups of the table data, for the last 35 days.  See [Documentation](https://aws.amazon.com/dynamodb/backup-restore/) for more detail.
+Point-in-time-recovery provides continuous backups of the table data, for the last 35 days.  See [Documentation](https://aws.amazon.com/dynamodb/backup-restore/) for aws theory.
 
-The [ewelists.com-tools-backend](https://github.com/Alex-Burgess/ewelists.com-tools-backend) repository contains a backups function, which creates daily backups, which are kept for 7 days.  This helps with a wide variety of issues, including if the table is deleted by accident.
+The [ewelists.com-tools](https://github.com/Alex-Burgess/ewelists.com-tools) application deploys a backups function, which creates daily backups, which are kept for 7 days.  This helps with a wide variety of issues, including if the table is deleted by accident.
 
 ### Cognito UserPool Backup
 Cognito does not have a backup option.
@@ -651,7 +624,7 @@ Both seem to perform backup and restore.  Using cognito-backup for now.
 
 **KPI Dashboard**
 
-The project uses [cyfe](https://app.cyfe.com/dashboards/934848) a dashboard web tool.  They provide a useful PushAPI widget, that makes it possible to easily integrate within the code base to push KPI data updates.
+The project uses [cyfe](https://app.cyfe.com/dashboards/934848), a dashboard web tool.  They provide a useful PushAPI widget, that makes it possible to easily integrate within the code base to push KPI data updates.
 
 Currently only the Lists service pushes KPIs, e.g. when creating a list, adding a gift, etc. The KPIs are also only turned on in the Product environment.
 
@@ -678,13 +651,8 @@ AWS x-ray is enabled for APIs and Lambda tracing.  The instrumentation features 
 
 Information on how to export data from a table for testing purposes is available [here](documentation/reference.md#export-prod-data-for-testing-in-test-or-staging).
 
-**Tools**
-
-There is a tools project, which consists of helper functions.  Including:
-- A mechanism to update the details of products not found.
-- A function that periodically (every 15 minutes in production) checks if there are products in the notfound table and sends a notification if there are.
-
-The code for this API is available at the [ewelists.com-tools-backend](https://github.com/Alex-Burgess/ewelists.com-tools-backend) repository.
+**Tools Application**
+A web dashboard/tools style application, with additional help functions, e.g. for backups and checking Notfound table.  Further [Documentation](https://github.com/Alex-Burgess/ewelists.com-tools)
 
 The procedure for updating product info is available at [How to Handle Not Found Product](documentation/reference.md#how-to-handle-not-found-product)
 
