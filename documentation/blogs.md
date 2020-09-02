@@ -10,6 +10,13 @@ Checklist:
 1. Provide image link
 1. Create products and update ids in template (https://tools.ewelists.com)
 
+To create an amazon product:
+1. Find product
+1. Clean up url parameters (i.e. everything including and after ?)
+1. Get short text link
+1. Get image (large) code and paste into tool.
+1. Get Id and copy into template.
+
 ### Blog Submission Template
 Blog posts will be supplied with the following template:
 
@@ -27,7 +34,7 @@ Skip to section:
 **Section Heading:** Feeding in general
 
 **Paragraph:**
-There are different options when it comes to feeding…. Two of our favourite stores are Hot Milk (https://uk.hotmilklingerie.com).
+There are different options when it comes to feeding…
 
 **Products:** (List of IDs)
 - fcc128c3-5e79-4671-9be2-923864b57e39
