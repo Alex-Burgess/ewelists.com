@@ -441,6 +441,11 @@ Outputs:
     Export:
       Name: !Sub 'Auth-${Environment}-UserPoolId'
 
+  userPoolArn:
+    Description: Cognito user pool arn.
+    Value: !GetAtt UserPool.Arn
+    Export:
+      Name: !Sub 'Auth-${Environment}-UserPoolArn'
 
   userPoolClientId:
     Value: !Ref UserPoolClient

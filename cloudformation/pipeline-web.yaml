@@ -1307,10 +1307,13 @@ Resources:
           Statement:
           - Effect: Allow
             Action:
-              - cognito-idp:*
+              - cognito-idp:AdminCreateUser
+              - cognito-idp:AdminSetUserPassword
+              - cognito-idp:AdminUpdateUserAttributes
+              - cognito-idp:AdminDeleteUser
             Resource:
-              - Fn::ImportValue: Auth-Tools-staging-UserPoolArn
-              - Fn::ImportValue: Auth-Tools-prod-UserPoolArn
+              - Fn::ImportValue: Auth-staging-UserPoolArn
+              - Fn::ImportValue: Auth-prod-UserPoolArn
           - Effect: Allow
             Action:
               - 'dynamodb:PutItem'
@@ -1321,7 +1324,9 @@ Resources:
               - 'dynamodb:DeleteItem'
             Resource:
               - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/lists-prod"
+              - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/lists-prod/*"
               - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/lists-staging"
+              - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/lists-staging/*"
               - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/notfound-prod"
               - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/notfound-staging"
               - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/products-prod"

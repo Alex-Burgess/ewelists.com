@@ -122,6 +122,7 @@ Resources:
               - 'dynamodb:DeleteItem'
             Resource:
               - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/lists-${Environment}"
+              - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/lists-${Environment}/*"
               - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/notfound-${Environment}"
               - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/products-${Environment}"
           - Effect: Allow
