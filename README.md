@@ -525,7 +525,12 @@ The auth and database stacks are not handled by the pipeline.
       --parameters ParameterKey=PipelineName,ParameterValue=main
     ```
 1. **Pipeline Stack:** Create the stack, using the cli to import the oauth token from the parameter store.
+
     ```
+    aws s3 mb s3://infra-templates-ewelists
+
+    aws s3 cp pipeline-web.yaml s3://infra-templates-ewelists
+
     aws cloudformation create-stack --stack-name Pipeline-Web \
      --template-body file://pipeline-web.yaml \
      --capabilities CAPABILITY_NAMED_IAM \
@@ -535,8 +540,10 @@ The auth and database stacks are not handled by the pipeline.
 
 ### Update Web Pipeline
 ```
+aws s3 cp pipeline-web.yaml s3://infra-templates-ewelists
+
 aws cloudformation update-stack --stack-name Pipeline-Web \
- --template-body file://pipeline-web.yaml \
+ --template-url https://s3.amazonaws.com/infra-templates-ewelists/pipeline-web.yaml \
  --capabilities CAPABILITY_NAMED_IAM \
  --parameters ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text` \
    ParameterKey=GitHubSecret,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github_secret" --with-decryption --query 'Parameter.Value' --output text`
