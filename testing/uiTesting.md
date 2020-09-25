@@ -62,6 +62,16 @@ To record test runs in the cypress dashboard a key is required.
 aws ssm put-parameter --name /Cypress/Web/Key --type SecureString --value "6596444-38afc6ee-????"
 ```
 
+### Add Gmail Tester config to parameter store:
+The gmail tester is used to get details from emails, e.g. confirmation codes, to fully automate processes like signup and reset password.
+```
+aws ssm put-parameter --name /Cypress/GT/Client_ID --type String --value "123456..."
+aws ssm put-parameter --name /Cypress/GT/Project_ID --type String --value "123456..."
+aws ssm put-parameter --name /Cypress/GT/Client_Secret --type SecureString --value "123456abcde...."
+aws ssm put-parameter --name /Cypress/GT/Access_Token --type SecureString --value "123456abcde...."
+aws ssm put-parameter --name /Cypress/GT/Refresh_Token --type SecureString --value "123456abcde...."
+```
+
 ### Create CodeBuild project for manual test executions
 E2E smoke tests are carried out as part of deployments to staging and production environments.  In addition to this, there is a codebuild project which can allow Cypress tests to be triggered manually.  The default setup is test the full suite of regression tests in parallel and recorded to the Cypress dashboard.  The test tag, environment and cypress config file can all be overided by changing the environment variables.  The github branch can be updated by changing relevant parameter to change the source configuration in the template.
 
@@ -77,31 +87,8 @@ E2E smoke tests are carried out as part of deployments to staging and production
     ```
 
 ## Implementation Details
-## Automate Congito User Login ???
-The [best practices](https://docs.cypress.io/guides/references/best-practices.html#Selecting-Elements) suggest not to use the UI to login before each test and instead to programmatically log in.  This will be more efficient.
-
-By default it is not possible to import the Amplify libraries to Cypress.  To get this to work we need to use the [Cypress Webpack Preprocessor](https://github.com/cypress-io/cypress-webpack-preprocessor) to transpile the code, so that it will run inside the browser.
-
-* Install cypress webpack preprocessor:
-```
-npm install --save-dev @cypress/webpack-preprocessor
-```
-* Update `plugins/index.js` to require the preprocessor
-```
-const webpackPreprocessor = require('@cypress/webpack-preprocessor')
-
-/**
- * @type {Cypress.PluginConfig}
- */
-module.exports = (on, config) => {
-  // `on` is used to hook into various events Cypress emits
-  // `config` is the resolved Cypress config
-
-  on('file:preprocessor', webpackPreprocessor())
-}
-```
-
-After this we can then use the amplify library to authenticate a user, rather than using the UI.  We still perform one E2E ui test to ensure the login page is working correctly.
+## Automate Congito User Login
+The [best practices](https://docs.cypress.io/guides/references/best-practices.html#Selecting-Elements) suggest not to use the UI to login before each test and instead to programmatically log in.  We can then use the amplify library to authenticate a user, rather than using the UI.  We still perform one E2E ui test to ensure the login page is working correctly.
 
 ## Testing flows which include email in the process
 

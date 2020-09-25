@@ -111,7 +111,7 @@ Resources:
               - cognito-idp:AdminUpdateUserAttributes
               - cognito-idp:AdminDeleteUser
             Resource:
-              - Fn::ImportValue: !Sub 'Auth-Tools-${Environment}-UserPoolArn'
+              - Fn::ImportValue: !Sub 'Auth-${Environment}-UserPoolArn'
           - Effect: Allow
             Action:
               - 'dynamodb:PutItem'
@@ -130,6 +130,7 @@ Resources:
               - ssm:GetParameters
             Resource:
               - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/Cypress/Web/Key"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/Cypress/GT/*"
           Version: '2012-10-17'
 
   BatchServiceRole:

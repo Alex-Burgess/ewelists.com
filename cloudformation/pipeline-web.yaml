@@ -1336,6 +1336,7 @@ Resources:
               - ssm:GetParameters
             Resource:
               - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/Cypress/Web/Key"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/Cypress/GT/*"
           Version: '2012-10-17'
 
   E2EBatchServiceRole:
