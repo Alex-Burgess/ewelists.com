@@ -754,7 +754,7 @@ Resources:
                   {"name":"COMMIT_URL","value":"#{WebSourceVariables.CommitUrl}","type":"PLAINTEXT"},
                   {"name":"TEST_TAG","value":"smoke","type":"PLAINTEXT"}
                 ]'
-              RunOrder: 5
+              RunOrder: 6
 
   MainCFNRole:
     Type: AWS::IAM::Role
