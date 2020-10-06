@@ -8,7 +8,7 @@ To generate a session for the required AWS profile:
 ## Github Administration
 The master branch will be the latest working code. To clone the project:
 ```
-git clone git@github.com:Alex-Burgess/ewelists.com.git
+git clone git@github.com:Ewelists/ewelists.com.git
 ```
 
 Versioning is used to track changes to config, code and procedures. To create a version tag:

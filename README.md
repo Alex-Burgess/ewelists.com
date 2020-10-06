@@ -1,14 +1,14 @@
 # ewelists.com
 This is the central repo and hence starting point of the documentation for this application.  There are a number of repositories that make up the main application.
 
-- [Main](https://github.com/Alex-Burgess/ewelists.com) - Templates to deploy the Infrastructure (e.g. Auth stack, hosted zone, web stack and pipeline
-- [Web](https://github.com/Alex-Burgess/ewelists.com-web) - The Frontend React Application
-- [Services](https://github.com/Alex-Burgess/ewelists.com-services) - The backend APIs for the main application
+- [Main](https://github.com/Ewelists/ewelists.com) - Templates to deploy the Infrastructure (e.g. Auth stack, hosted zone, web stack and pipeline
+- [Web](https://github.com/Ewelists/ewelists.com-web) - The Frontend React Application
+- [Services](https://github.com/Ewelists/ewelists.com-services) - The backend APIs for the main application
 
 There are also some additional repositories that make up an Admin dashboard/tools application:
-- [Tools-Main](https://github.com/Alex-Burgess/ewelists.com-tools) - Templates to deploy the Infrastructure (e.g. Auth stack, hosted zone, web stack and pipeline)
-- [Tools-Web](https://github.com/Alex-Burgess/ewelists.com-tools-web) - The Frontend React Application
-- [Tools-Services](https://github.com/Alex-Burgess/ewelists.com-tools-services) - The backend APIs and functions of the tools application
+- [Tools-Main](https://github.com/Ewelists/ewelists.com-tools) - Templates to deploy the Infrastructure (e.g. Auth stack, hosted zone, web stack and pipeline)
+- [Tools-Web](https://github.com/Ewelists/ewelists.com-tools-web) - The Frontend React Application
+- [Tools-Services](https://github.com/Ewelists/ewelists.com-tools-services) - The backend APIs and functions of the tools application
 
 
 ## Contents
@@ -239,7 +239,7 @@ aws cloudformation create-stack --stack-name Database-Test \
 ```
 
 **Backed API Services**
-Latest details on setting up local python environment are in the [Services repo](https://github.com/Alex-Burgess/ewelists.com-services).
+Latest details on setting up local python environment are in the [Services repo](https://github.com/Ewelists/ewelists.com-services).
 
 1. Create an S3 Bucket for each services SAM builds
     ```
@@ -496,7 +496,7 @@ The auth and database stacks are not handled by the pipeline.
     ```
     aws ssm put-parameter --name /Postman/Key --type SecureString --value "PMAK-5da0....???"
     ```
-1. Add Postman Collection and Environment IDs to parameter store (See [Postman](https://github.com/Alex-Burgess/ewelists.com/blob/master/documentation/reference.md#postman) reference commands for retrieving IDs.):
+1. Add Postman Collection and Environment IDs to parameter store (See [Postman](https://github.com/Ewelists/ewelists.com/blob/master/documentation/reference.md#postman) reference commands for retrieving IDs.):
     ```
     aws ssm put-parameter --name /Postman/Collection/Lists --type String --value "6596444-38afc6ee-????"
     aws ssm put-parameter --name /Postman/Collection/NotFound --type String --value "6596444-38afc6ee-????"
@@ -551,7 +551,7 @@ aws cloudformation update-stack --stack-name Pipeline-Web \
 
 ## Testing
 ### Unit and Integration Testing
-See the [Services](https://github.com/Alex-Burgess/ewelists.com-services) documentation for details on unit and integration testing.
+See the [Services](https://github.com/Ewelists/ewelists.com-services) documentation for details on unit and integration testing.
 
 ### UI / Functional Testing
 [Cypress]() is used to carry out automated testing of application UI and functionality. See [Cypress Testing](./testing/uiTesting.md)
@@ -598,7 +598,7 @@ We backup dynamodb data and cognito user pool, so that in the event of a complet
 
 Point-in-time-recovery provides continuous backups of the table data, for the last 35 days.  See [Documentation](https://aws.amazon.com/dynamodb/backup-restore/) for aws theory.
 
-The [ewelists.com-tools](https://github.com/Alex-Burgess/ewelists.com-tools) application deploys a backups function, which creates daily backups, which are kept for 7 days.  This helps with a wide variety of issues, including if the table is deleted by accident.
+The [ewelists.com-tools](https://github.com/Ewelists/ewelists.com-tools) application deploys a backups function, which creates daily backups, which are kept for 7 days.  This helps with a wide variety of issues, including if the table is deleted by accident.
 
 ### Cognito UserPool Backup
 Cognito does not have a backup option.
@@ -659,7 +659,7 @@ AWS x-ray is enabled for APIs and Lambda tracing.  The instrumentation features 
 Information on how to export data from a table for testing purposes is available [here](documentation/reference.md#export-prod-data-for-testing-in-test-or-staging).
 
 **Tools Application**
-A web dashboard/tools style application, with additional help functions, e.g. for backups and checking Notfound table.  Further [Documentation](https://github.com/Alex-Burgess/ewelists.com-tools)
+A web dashboard/tools style application, with additional help functions, e.g. for backups and checking Notfound table.  Further [Documentation](https://github.com/Ewelists/ewelists.com-tools)
 
 The procedure for updating product info is available at [How to Handle Not Found Product](documentation/reference.md#how-to-handle-not-found-product)
 
