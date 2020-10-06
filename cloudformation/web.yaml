@@ -157,19 +157,6 @@ Resources:
                 arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity
                 ${ImagesBucketOriginAccessIdentity}
 
-  PageRedirectsBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !If [Prod, !Sub "${DomainName}-redirects", !Sub "${Environment}.${DomainName}-redirects"]
-      AccessControl: Private
-      LoggingConfiguration:
-        DestinationBucketName: !Ref LoggingBucket
-        LogFilePrefix: !If [Prod, !Sub 's3-${DomainName}-redirects/', !Sub 's3-${Environment}.${DomainName}-redirects/']
-      MetricsConfigurations:
-        - Id: EntireBucket
-      WebsiteConfiguration:
-        IndexDocument: index.html
-
   WebBucketOriginAccessIdentity:
     Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
     Properties:
@@ -197,10 +184,6 @@ Resources:
           S3OriginConfig:
             OriginAccessIdentity: !Sub >-
               origin-access-identity/cloudfront/${ImagesBucketOriginAccessIdentity}
-        - DomainName: !Sub '${PageRedirectsBucket}.s3-website-eu-west-1.amazonaws.com'
-          Id: !Sub 'S3-${PageRedirectsBucket}'
-          CustomOriginConfig:
-            OriginProtocolPolicy: http-only
         Enabled: true
         Comment: "CDN for web bucket."
         DefaultRootObject: index.html
@@ -222,14 +205,6 @@ Resources:
         CacheBehaviors:
         - PathPattern: /images/*
           TargetOriginId: !Sub 'S3-${ImagesBucket}'
-          Compress: true
-          ViewerProtocolPolicy: redirect-to-https
-          ForwardedValues:
-            QueryString: false
-            Cookies:
-              Forward: none
-        - PathPattern: /listideas*
-          TargetOriginId: !Sub 'S3-${PageRedirectsBucket}'
           Compress: true
           ViewerProtocolPolicy: redirect-to-https
           ForwardedValues:
