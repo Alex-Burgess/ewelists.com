@@ -13,6 +13,9 @@ Parameters:
     AllowedPattern: "^[a-z0-9-]*.co.uk$"
     ConstraintDescription: Must be a web domain, ending in .co.uk. Can include lower case letters, numbers and hypens.
     Default: ewelists.co.uk
+  HostedZone:
+    Description: HostedZoneID of Sub domain.
+    Type: String
   Environment:
     Description: Environment type.
     Default: test
@@ -37,6 +40,9 @@ Resources:
         - !If [Prod, !Sub "*.${DomainName}", !Sub "*.${Environment}.${DomainName}"]
         - !If [Prod, !Ref CoUkDomainName, !Sub "${Environment}.${CoUkDomainName}"]
         - !If [Prod, !Sub "*.${CoUkDomainName}", !Sub "*.${Environment}.${CoUkDomainName}"]
+      DomainValidationOptions:
+        - DomainName: !If [Prod, !Ref DomainName, !Sub "${Environment}.${DomainName}"]
+          HostedZoneId: !Ref HostedZone
       ValidationMethod: "DNS"
 
 Outputs:

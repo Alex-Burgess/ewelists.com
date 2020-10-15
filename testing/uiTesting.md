@@ -77,9 +77,14 @@ E2E smoke tests are carried out as part of deployments to staging and production
 
 1. **Create resources:**
     ```
-    aws cloudformation create-stack --stack-name Build-Web-Regression-Tests  \
+    aws cloudformation create-stack --stack-name Build-Web-Regression-Tests-Staging  \
       --template-body file://e2e-regression-tests.yaml  \
       --capabilities CAPABILITY_NAMED_IAM
+
+    aws cloudformation create-stack --stack-name Build-Web-Regression-Tests-Prod  \
+      --template-body file://e2e-regression-tests.yaml  \
+      --capabilities CAPABILITY_NAMED_IAM \
+      --parameters ParameterKey=Environment,ParameterValue=prod
     ```
 1. **Trigger Test Run:**
     ```
@@ -111,6 +116,67 @@ Note: May need to update organisation scp to allow iam users to be created first
 
 Create IAM user with programmatic access.  (This was done manually, need a more automated way for staging / prod.)
 *Permissions:* Need to ensure more restricted permissions on iam user.
+
+Policy 1: tools-cognito-permissions
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": "cognito-idp:*",
+            "Resource": [
+                "arn:aws:cognito-idp:eu-west-1:123456789012:userpool/eu-west-1_abcdefgh",
+                "arn:aws:cognito-idp:eu-west-1:123456789012:userpool/eu-west-1_abcdefgh"
+            ]
+        }
+    ]
+}
+```
+
+Policy 2: web-cognito-permissions
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": "cognito-idp:*",
+            "Resource": [
+                "arn:aws:cognito-idp:eu-west-1:123456789012:userpool/eu-west-1_abcdefgh",
+                "arn:aws:cognito-idp:eu-west-1:123456789012:userpool/eu-west-1_abcdefgh"
+            ]
+        }
+    ]
+}
+```
+
+Policy 3: web-tables-permissions
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor1",
+            "Effect": "Allow",
+            "Action": "dynamodb:*",
+            "Resource": [
+                "arn:aws:dynamodb:eu-west-1:123456789012:table/lists-test",
+                "arn:aws:dynamodb:eu-west-1:123456789012:table/lists-test/*",
+                "arn:aws:dynamodb:eu-west-1:123456789012:table/lists-staging",
+                "arn:aws:dynamodb:eu-west-1:123456789012:table/lists-staging/*",
+                "arn:aws:dynamodb:eu-west-1:123456789012:table/products-test",
+                "arn:aws:dynamodb:eu-west-1:123456789012:table/products-staging",
+                "arn:aws:dynamodb:eu-west-1:123456789012:table/notfound-test",
+                "arn:aws:dynamodb:eu-west-1:123456789012:table/notfound-staging"
+            ]
+        }
+    ]
+}
+```
+
 
 Add keys to local profile.  Edit `.aws/config` and `.aws/credentials`.
 

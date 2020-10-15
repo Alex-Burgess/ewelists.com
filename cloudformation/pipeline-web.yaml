@@ -42,24 +42,69 @@ Parameters:
     Default: cloudformation/web.yaml
     Description: The path of the Web stack template
     Type: String
-  MonitoringTemplatePath:
-    Default: cloudformation/monitoring-health.yaml
-    Description: The path of the monitoring stack template
+  PipelineCrossAccountRoleName:
     Type: String
-  EUWest1ArtifactBucketName:
-    Description: Name of the eu-west-1 artifact bucket.
+    Description: Name of the pipeline cross account role.
+    Default: pipeline-main-CrossAccount-Role
+  PipelineCrossAccountCFRoleName:
     Type: String
-    Default: pipeline-ewelists-main-eu-west-1-artifacts
-  USEast1ArtifactBucketName:
-    Description: Name of the us-east-1 artifact bucket.
+    Description: Name of the pipeline cross account role.
+    Default: pipeline-main-CrossAccount-CF-Role
+  PipelineCrossAccountDeployWebContentRoleName:
     Type: String
-    Default: pipeline-ewelists-main-us-east-1-artifacts
+    Description: Name of the pipeline cross account role.
+    Default: pipeline-main-CrossAccount-DeployWebContent-Role
+  PipelineCrossAccountE2ERoleName:
+    Type: String
+    Description: Name of the pipeline cross account role.
+    Default: pipeline-main-CrossAccount-E2E-Role
 
 Resources:
+  PipelineArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'pipeline-ewelists-${PipelineName}-${AWS::Region}-artifacts'
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      LifecycleConfiguration:
+        Rules:
+          - Id: Build logs expiration
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+            ExpirationInDays: 180
+            Prefix: '*'
+            Status: Enabled
+
+  PipelineArtifactBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref PipelineArtifactBucket
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 's3:Get*'
+              - 's3:Put*'
+            Effect: Allow
+            Resource: !Sub "arn:aws:s3:::${PipelineArtifactBucket}/*"
+            Principal:
+              AWS:
+                - "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:root"
+          - Action:
+              - 's3:ListBucket'
+            Effect: Allow
+            Resource: !Sub "arn:aws:s3:::${PipelineArtifactBucket}"
+            Principal:
+              AWS:
+                - "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:root"
+
   EmailTemplatesBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: services-email-templates
+      BucketName: pipeline-services-email-templates
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: True
@@ -70,7 +115,7 @@ Resources:
   ListsBuildsBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: services-builds-lists
+      BucketName: pipeline-services-builds-lists
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: True
@@ -83,13 +128,13 @@ Resources:
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
             ExpirationInDays: 60
-            Prefix: services-builds-lists-staging*
+            Prefix: pipeline-services-builds-lists-staging*
             Status: Enabled
 
   NotFoundBuildsBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: services-builds-notfound
+      BucketName: pipeline-services-builds-notfound
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: True
@@ -102,13 +147,13 @@ Resources:
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
             ExpirationInDays: 60
-            Prefix: services-builds-notfound-staging*
+            Prefix: pipeline-services-builds-notfound-staging*
             Status: Enabled
 
   ProductsBuildsBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: services-builds-products
+      BucketName: pipeline-services-builds-products
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: True
@@ -121,13 +166,13 @@ Resources:
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
             ExpirationInDays: 60
-            Prefix: services-builds-products-staging*
+            Prefix: pipeline-services-builds-products-staging*
             Status: Enabled
 
   ContactBuildsBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: services-builds-contact
+      BucketName: pipeline-services-builds-contact
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: True
@@ -140,47 +185,78 @@ Resources:
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
             ExpirationInDays: 60
-            Prefix: services-builds-contact-staging*
+            Prefix: pipeline-services-builds-contact-staging*
             Status: Enabled
 
-  PipelineRole:
-    Type: AWS::IAM::Role
+  EmailTemplatesBucketPolicy:
+    Type: AWS::S3::BucketPolicy
     Properties:
-      RoleName: !Sub 'pipeline-${PipelineName}-ServiceRole'
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
+      Bucket: !Ref EmailTemplatesBucket
+      PolicyDocument:
         Statement:
-          - Effect: Allow
+          - Action:
+              - 's3:Get*'
+            Effect: Allow
+            Resource: !Sub "arn:aws:s3:::${EmailTemplatesBucket}/*"
             Principal:
-              Service: codepipeline.amazonaws.com
-            Action:
-              - sts:AssumeRole
-      Path: /
-      Policies:
-        - PolicyName: PipelineServiceRolePolicy
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:PutObject
-                  - s3:GetObject
-                  - cloudformation:CreateStack
-                  - cloudformation:DescribeStacks
-                  - cloudformation:DeleteStack
-                  - cloudformation:UpdateStack
-                  - cloudformation:CreateChangeSet
-                  - cloudformation:ExecuteChangeSet
-                  - cloudformation:DeleteChangeSet
-                  - cloudformation:DescribeChangeSet
-                  - cloudformation:SetStackPolicy
-                  - iam:PassRole
-                  - sns:Publish
-                  - codebuild:BatchGetBuilds
-                  - codebuild:StartBuild
-                  - codebuild:BatchGetBuildBatches
-                  - codebuild:StartBuildBatch
-                Resource: "*"
+              AWS:
+                - !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountCFRoleName}"
+
+  ListsBuildsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ListsBuildsBucket
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 's3:Get*'
+            Effect: Allow
+            Resource: !Sub "arn:aws:s3:::${ListsBuildsBucket}/*"
+            Principal:
+              AWS:
+                - !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountCFRoleName}"
+
+  NotFoundBuildsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref NotFoundBuildsBucket
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 's3:Get*'
+            Effect: Allow
+            Resource: !Sub "arn:aws:s3:::${NotFoundBuildsBucket}/*"
+            Principal:
+              AWS:
+                - !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountCFRoleName}"
+
+  ProductsBuildsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ProductsBuildsBucket
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 's3:Get*'
+            Effect: Allow
+            Resource: !Sub "arn:aws:s3:::${ProductsBuildsBucket}/*"
+            Principal:
+              AWS:
+                - !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountCFRoleName}"
+
+  ContactBuildsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ContactBuildsBucket
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 's3:Get*'
+            Effect: Allow
+            Resource: !Sub "arn:aws:s3:::${ContactBuildsBucket}/*"
+            Principal:
+              AWS:
+                - !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountCFRoleName}"
 
   MainWebhook:
     Type: AWS::CodePipeline::Webhook
@@ -235,17 +311,12 @@ Resources:
     Properties:
       Name: !Ref PipelineName
       RoleArn: !GetAtt PipelineRole.Arn
-      ArtifactStores:
-        -
-          Region: eu-west-1
-          ArtifactStore:
-            Type: S3
-            Location: !Ref EUWest1ArtifactBucketName
-        -
-          Region: us-east-1
-          ArtifactStore:
-            Type: S3
-            Location: !Ref USEast1ArtifactBucketName
+      ArtifactStore:
+        Type: S3
+        Location: !Ref PipelineArtifactBucket
+        EncryptionKey:
+          Id: !GetAtt pipelineKey.Arn
+          Type: "KMS"
       Stages:
         - Name: Source
           Actions:
@@ -337,7 +408,7 @@ Resources:
                 RoleArn: !GetAtt [MainCFNRole, Arn]
                 StackName: Web-Staging
                 TemplatePath: !Sub "S-Main::${MainTemplatePath}"
-                ParameterOverrides: '{ "Environment": "staging" }'
+                ParameterOverrides: '{ "Environment": "staging", "SSLCertificateIdParameterVersion": "1" }'
                 OutputFileName: MainOutput.json
               RunOrder: 1
             - Name: Deploy-Services-Emails
@@ -350,7 +421,7 @@ Resources:
                 - Name: S-Services
               Configuration:
                 ActionMode: CREATE_UPDATE
-                RoleArn: !GetAtt [EmailCFNRole, Arn]
+                RoleArn: !GetAtt [ServicesCFNRole, Arn]
                 StackName: Email-Templates-Staging
                 TemplatePath: S-Services::cloudformation/email-templates-master-stack.yaml
                 ParameterOverrides: '{ "Environment": "staging" }'
@@ -442,7 +513,7 @@ Resources:
               OutputArtifacts:
                 - Name: D-Web-Staging
               Configuration:
-                ProjectName: !Ref WebDeployContentProject
+                ProjectName: !Ref StagingDeployWebContentProject
                 EnvironmentVariables: !Sub |
                   [
                     {"name": "Commit_ID", "value": "#{WebSourceVariables.CommitId}", "type": "PLAINTEXT"},
@@ -450,27 +521,6 @@ Resources:
                     {"name":"WEB_BUCKET","value":"staging.${WebBucketName}","type":"PLAINTEXT"}
                   ]
               RunOrder: 3
-            - Name: Deploy-Monitoring
-              InputArtifacts:
-                - Name: S-Main
-                - Name: D-Main-Staging
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Version: '1'
-                Provider: CloudFormation
-              Configuration:
-                ActionMode: CREATE_UPDATE
-                RoleArn: !GetAtt [MonitoringCFNRole, Arn]
-                StackName: Monitoring-Health-Staging
-                TemplatePath: !Sub "S-Main::${MonitoringTemplatePath}"
-                ParameterOverrides: |
-                  {
-                    "CloudFrontId" : { "Fn::GetParam" : [ "D-Main-Staging", "MainOutput.json" , "WebCloudFrontID" ]},
-                    "Environment": "staging"
-                  }
-              RunOrder: 3
-              Region: us-east-1
             - Name: End-To-End-Tests
               ActionTypeId:
                 Category: Build
@@ -480,7 +530,7 @@ Resources:
               InputArtifacts:
                 - Name: S-Web
               Configuration:
-                ProjectName: !Ref E2ETestsProject
+                ProjectName: !Ref StagingE2ETestsProject
                 BatchEnabled: true
                 EnvironmentVariables: '[
                   {"name":"ENVIRONMENT","value":"staging","type":"PLAINTEXT"},
@@ -503,11 +553,12 @@ Resources:
                 - Name: S-Main
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
-                RoleArn: !GetAtt [MainCFNRole, Arn]
+                RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountCFRoleName}"
                 StackName: Web-Prod
                 ChangeSetName: Web-Prod-ChangeSet
                 TemplatePath: !Sub "S-Main::${MainTemplatePath}"
-                ParameterOverrides: '{ "Environment": "prod" }'
+                ParameterOverrides: '{ "Environment": "prod", "SSLCertificateIdParameterVersion": "1" }'
+              RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountRoleName}"
               RunOrder: 1
             - Name: CS-Services-Emails
               ActionTypeId:
@@ -519,11 +570,12 @@ Resources:
                 - Name: S-Services
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
-                RoleArn: !GetAtt [EmailCFNRole, Arn]
+                RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountCFRoleName}"
                 StackName: Email-Templates-Prod
                 ChangeSetName: Email-Prod-ChangeSet
                 TemplatePath: S-Services::cloudformation/email-templates-master-stack.yaml
                 ParameterOverrides: '{ "Environment": "prod" }'
+              RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountRoleName}"
               RunOrder: 1
             - Name: CS-Services-Lists
               ActionTypeId:
@@ -535,7 +587,7 @@ Resources:
                 - Name: B-Services
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
-                RoleArn: !GetAtt [ServicesCFNRole, Arn]
+                RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountCFRoleName}"
                 StackName: Service-Lists-Prod
                 ChangeSetName: Service-Lists-Prod-ChangeSet
                 TemplatePath: B-Services::lists-packaged.yaml
@@ -546,6 +598,7 @@ Resources:
                     "KpiUrl": "/KPI/Lists/prod"
                   }
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+              RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountRoleName}"
               RunOrder: 1
             - Name: CS-Services-NotFound
               ActionTypeId:
@@ -557,12 +610,13 @@ Resources:
                 - Name: B-Services
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
-                RoleArn: !GetAtt [ServicesCFNRole, Arn]
+                RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountCFRoleName}"
                 StackName: Service-NotFound-Prod
                 ChangeSetName: Service-NotFound-Prod-ChangeSet
                 TemplatePath: B-Services::notfound-packaged.yaml
                 ParameterOverrides: '{ "Environment": "prod" }'
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+              RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountRoleName}"
               RunOrder: 1
             - Name: CS-Services-Products
               ActionTypeId:
@@ -574,12 +628,13 @@ Resources:
                 - Name: B-Services
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
-                RoleArn: !GetAtt [ServicesCFNRole, Arn]
+                RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountCFRoleName}"
                 StackName: Service-Products-Prod
                 ChangeSetName: Service-Products-Prod-ChangeSet
                 TemplatePath: B-Services::products-packaged.yaml
                 ParameterOverrides: '{ "Environment": "prod" }'
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+              RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountRoleName}"
               RunOrder: 1
             - Name: CS-Services-Contact
               ActionTypeId:
@@ -591,12 +646,13 @@ Resources:
                 - Name: B-Services
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
-                RoleArn: !GetAtt [ServicesCFNRole, Arn]
+                RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountCFRoleName}"
                 StackName: Service-Contact-Prod
                 ChangeSetName: Service-Contact-Prod-ChangeSet
                 TemplatePath: B-Services::contact-packaged.yaml
                 ParameterOverrides: '{ "Environment": "prod" }'
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+              RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountRoleName}"
               RunOrder: 1
             - Name: Approve-Deploy
               ActionTypeId:
@@ -616,9 +672,10 @@ Resources:
               Configuration:
                 ActionMode: CHANGE_SET_EXECUTE
                 ChangeSetName: Web-Prod-ChangeSet
-                RoleArn: !GetAtt [MainCFNRole, Arn]
+                RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountCFRoleName}"
                 StackName: Web-Prod
                 OutputFileName: MainOutput.json
+              RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountRoleName}"
               RunOrder: 3
             - Name: Deploy-Services-Emails
               ActionTypeId:
@@ -629,8 +686,9 @@ Resources:
               Configuration:
                 ActionMode: CHANGE_SET_EXECUTE
                 ChangeSetName: Email-Prod-ChangeSet
-                RoleArn: !GetAtt [EmailCFNRole, Arn]
+                RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountCFRoleName}"
                 StackName: Email-Templates-Prod
+              RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountRoleName}"
               RunOrder: 3
             - Name: Deploy-Services-Lists
               ActionTypeId:
@@ -641,9 +699,10 @@ Resources:
               Configuration:
                 ActionMode: CHANGE_SET_EXECUTE
                 ChangeSetName: Service-Lists-Prod-ChangeSet
-                RoleArn: !GetAtt [ServicesCFNRole, Arn]
+                RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountCFRoleName}"
                 StackName: Service-Lists-Prod
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+              RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountRoleName}"
               RunOrder: 3
             - Name: Deploy-Services-NotFound
               ActionTypeId:
@@ -654,9 +713,10 @@ Resources:
               Configuration:
                 ActionMode: CHANGE_SET_EXECUTE
                 ChangeSetName: Service-NotFound-Prod-ChangeSet
-                RoleArn: !GetAtt [ServicesCFNRole, Arn]
+                RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountCFRoleName}"
                 StackName: Service-NotFound-Prod
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+              RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountRoleName}"
               RunOrder: 3
             - Name: Deploy-Services-Products
               ActionTypeId:
@@ -667,9 +727,10 @@ Resources:
               Configuration:
                 ActionMode: CHANGE_SET_EXECUTE
                 ChangeSetName: Service-Products-Prod-ChangeSet
-                RoleArn: !GetAtt [ServicesCFNRole, Arn]
+                RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountCFRoleName}"
                 StackName: Service-Products-Prod
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+              RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountRoleName}"
               RunOrder: 3
             - Name: Deploy-Services-Contact
               ActionTypeId:
@@ -680,9 +741,10 @@ Resources:
               Configuration:
                 ActionMode: CHANGE_SET_EXECUTE
                 ChangeSetName: Service-Contact-Prod-ChangeSet
-                RoleArn: !GetAtt [ServicesCFNRole, Arn]
+                RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountCFRoleName}"
                 StackName: Service-Contact-Prod
                 Capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+              RoleArn: !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountRoleName}"
               RunOrder: 3
             - Name: Services-Integration-Tests
               ActionTypeId:
@@ -707,34 +769,17 @@ Resources:
               OutputArtifacts:
                 - Name: D-Web-Prod
               Configuration:
-                ProjectName: !Ref WebDeployContentProject
+                ProjectName: !Ref ProdDeployWebContentProject
                 EnvironmentVariables: !Sub |
                   [
                     {"name": "Commit_ID", "value": "#{WebSourceVariables.CommitId}", "type": "PLAINTEXT"},
                     {"name":"ENVIRONMENT","value":"prod","type":"PLAINTEXT"},
-                    {"name":"WEB_BUCKET","value":"${WebBucketName}","type":"PLAINTEXT"}
+                    {"name":"WEB_BUCKET","value":"${WebBucketName}","type":"PLAINTEXT"},
+                    {"name":"BUILD_CROSS_ACCOUNT_ROLE","value":"${PipelineCrossAccountDeployWebContentRoleName}","type":"PLAINTEXT"},
+                    {"name":"ACCOUNT_ID","value":"{{resolve:ssm:/accounts/prod:1}}","type":"PLAINTEXT"},
+                    {"name":"PIPELINE","value":"main","type":"PLAINTEXT"}
                   ]
               RunOrder: 5
-            - Name: Deploy-Monitoring
-              InputArtifacts:
-                - Name: S-Main
-                - Name: D-Main-Prod
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Version: '1'
-                Provider: CloudFormation
-              Configuration:
-                ActionMode: CREATE_UPDATE
-                RoleArn: !GetAtt [MonitoringCFNRole, Arn]
-                StackName: Monitoring-Health-Prod
-                TemplatePath: !Sub "S-Main::${MonitoringTemplatePath}"
-                ParameterOverrides: |
-                  {
-                    "CloudFrontId" : { "Fn::GetParam" : [ "D-Main-Prod", "MainOutput.json" , "WebCloudFrontID" ]}
-                  }
-              RunOrder: 5
-              Region: us-east-1
             - Name: End-To-End-Tests
               ActionTypeId:
                 Category: Build
@@ -744,17 +789,279 @@ Resources:
               InputArtifacts:
                 - Name: S-Web
               Configuration:
-                ProjectName: !Ref E2ETestsProject
+                ProjectName: !Ref ProdE2ETestsProject
                 BatchEnabled: true
-                EnvironmentVariables: '[
-                  {"name":"ENVIRONMENT","value":"prod","type":"PLAINTEXT"},
-                  {"name":"CONFIG","value":"cypress.prod.json","type":"PLAINTEXT"},
-                  {"name":"COMMIT_ID","value":"#{WebSourceVariables.CommitId}","type":"PLAINTEXT"},
-                  {"name":"COMMIT_MSG","value":"#{WebSourceVariables.CommitMessage}","type":"PLAINTEXT"},
-                  {"name":"COMMIT_URL","value":"#{WebSourceVariables.CommitUrl}","type":"PLAINTEXT"},
-                  {"name":"TEST_TAG","value":"smoke","type":"PLAINTEXT"}
-                ]'
+                EnvironmentVariables: !Sub |
+                  [
+                    {"name":"ENVIRONMENT","value":"prod","type":"PLAINTEXT"},
+                    {"name":"CONFIG","value":"cypress.prod.json","type":"PLAINTEXT"},
+                    {"name":"COMMIT_ID","value":"#{WebSourceVariables.CommitId}","type":"PLAINTEXT"},
+                    {"name":"COMMIT_MSG","value":"#{WebSourceVariables.CommitMessage}","type":"PLAINTEXT"},
+                    {"name":"COMMIT_URL","value":"#{WebSourceVariables.CommitUrl}","type":"PLAINTEXT"},
+                    {"name":"TEST_TAG","value":"smoke","type":"PLAINTEXT"},
+                    {"name":"BUILD_CROSS_ACCOUNT_ROLE","value":"${PipelineCrossAccountE2ERoleName}","type":"PLAINTEXT"},
+                    {"name":"ACCOUNT_ID","value":"{{resolve:ssm:/accounts/prod:1}}","type":"PLAINTEXT"}
+                  ]
               RunOrder: 6
+
+  ServicesBuildProject:
+    Type: AWS::CodeBuild::Project
+    DependsOn: ServicesLogGroup
+    Properties:
+      Name: Services-API-Builds
+      Description: Builds Services repo APIs
+      ServiceRole: !GetAtt ServicesBuildRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Type: LOCAL
+        Modes:
+        - LOCAL_DOCKER_LAYER_CACHE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:4.0
+        EnvironmentVariables:
+          - Name: LISTS_BUILD_OUTPUT_BUCKET
+            Value: !Ref ListsBuildsBucket
+          - Name: NOTFOUND_BUILD_OUTPUT_BUCKET
+            Value: !Ref NotFoundBuildsBucket
+          - Name: PRODUCTS_BUILD_OUTPUT_BUCKET
+            Value: !Ref ProductsBuildsBucket
+          - Name: CONTACT_BUILD_OUTPUT_BUCKET
+            Value: !Ref ContactBuildsBucket
+          - Name: EMAIL_TEMPLATES_BUCKET
+            Value: !Ref EmailTemplatesBucket
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec.yaml
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+          GroupName: services-logs
+          StreamName: Builds
+      TimeoutInMinutes: 10
+
+  ServicesUnitTestsProject:
+    Type: AWS::CodeBuild::Project
+    DependsOn: ServicesLogGroup
+    Properties:
+      Name: Services-UnitTests
+      Description: Performs the unit testing of the lambda functions.
+      ServiceRole: !GetAtt ServicesBuildRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Type: LOCAL
+        Modes:
+        - LOCAL_DOCKER_LAYER_CACHE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:4.0
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec-unittests.yaml
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+          GroupName: services-logs
+          StreamName: UnitTests
+      TimeoutInMinutes: 10
+
+  ServicesIntegrationTestsProject:
+    DependsOn: ServicesLogGroup
+    Type: 'AWS::CodeBuild::Project'
+    Properties:
+      Name: Services-Integration-Tests
+      Description: Performs integration testing via Postman API.
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Type: LOCAL
+        Modes:
+        - LOCAL_DOCKER_LAYER_CACHE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: 'aws/codebuild/standard:4.0'
+      ServiceRole: !GetAtt ServicesBuildRole.Arn
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec-postman.yaml
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+          GroupName: services-logs
+          StreamName: Integration-Tests
+
+  StagingE2ETestsProject:
+    Type: 'AWS::CodeBuild::Project'
+    Properties:
+      Name: Web-E2E-Tests-Staging
+      Description: Performs end-to-end tests with cypress.
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Type: LOCAL
+        Modes:
+        - LOCAL_DOCKER_LAYER_CACHE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: 'aws/codebuild/standard:4.0'
+      ServiceRole: !GetAtt E2EBuildProjectRole.Arn
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec-cypress.yaml
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+          GroupName: !Ref ServicesLogGroup
+          StreamName: E2E-Tests
+      BuildBatchConfig:
+        ServiceRole: !Ref E2EBatchServiceRole
+        TimeoutInMins: 15
+        Restrictions:
+          MaximumBuildsAllowed: 10
+
+  ProdE2ETestsProject:
+    Type: 'AWS::CodeBuild::Project'
+    Properties:
+      Name: Web-E2E-Tests-Prod
+      Description: Performs end-to-end tests with cypress.
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Type: LOCAL
+        Modes:
+        - LOCAL_DOCKER_LAYER_CACHE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: 'aws/codebuild/standard:4.0'
+      ServiceRole: !GetAtt E2EBuildProjectRole.Arn
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec-cypress-prod.yaml
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+          GroupName: !Ref ServicesLogGroup
+          StreamName: E2E-Tests
+      BuildBatchConfig:
+        ServiceRole: !Ref E2EBatchServiceRole
+        TimeoutInMins: 15
+        Restrictions:
+          MaximumBuildsAllowed: 10
+
+  StagingDeployWebContentProject:
+    Type: 'AWS::CodeBuild::Project'
+    Properties:
+      Name: Web-Deploy-Content-Staging
+      Description: Deploys react web application
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Type: LOCAL
+        Modes:
+        - LOCAL_DOCKER_LAYER_CACHE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:4.0
+        EnvironmentVariables:
+          - Name: WEB_BUCKET
+            Value: !Ref WebBucketName
+          - Name: ENVIRONMENT
+            Value: prod
+      ServiceRole: !GetAtt WebDeployContentRole.Arn
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec-react.yaml
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+          GroupName: web
+          StreamName: DeployContent
+
+  ProdDeployWebContentProject:
+    Type: 'AWS::CodeBuild::Project'
+    Properties:
+      Name: Web-Deploy-Content-Prod
+      Description: Deploys react web application
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Type: LOCAL
+        Modes:
+        - LOCAL_DOCKER_LAYER_CACHE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:4.0
+        EnvironmentVariables:
+          - Name: WEB_BUCKET
+            Value: !Ref WebBucketName
+          - Name: ENVIRONMENT
+            Value: prod
+      ServiceRole: !GetAtt WebDeployContentRole.Arn
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec-react-prod.yaml
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+          GroupName: web
+          StreamName: DeployContent
+
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'pipeline-${PipelineName}-ServiceRole'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: PipelineServiceRolePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - cloudformation:CreateStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DeleteStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:SetStackPolicy
+                  - iam:PassRole
+                  - sns:Publish
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuildBatches
+                  - codebuild:StartBuildBatch
+                Resource: "*"
+        - PolicyName: PipelineCrossAccountPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sts:AssumeRole
+                Resource:
+                  - "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/*"
 
   MainCFNRole:
     Type: AWS::IAM::Role
@@ -825,6 +1132,7 @@ Resources:
                   - "arn:aws:s3:::staging.ewelists.com-logging/*"
                   - "arn:aws:s3:::staging.ewelists.com-images"
                   - "arn:aws:s3:::staging.ewelists.com-redirects"
+                  - "arn:aws:s3:::cognito-ewelists-backups-staging"
         - PolicyName: ManageProdS3
           PolicyDocument:
             Version: '2012-10-17'
@@ -981,32 +1289,11 @@ Resources:
                 Resource:
                   - "arn:aws:s3:::main-pipeline-eu-artificates-test/*"
                   - "arn:aws:s3:::main-pipeline-us-artificates-test/*"
-                  - "arn:aws:s3:::ewelists-pipeline-test"
-                  - "arn:aws:s3:::ewelists-pipeline-test/*"
-                  - "arn:aws:s3:::web-pipeline-artifacts/*"
-                  - "arn:aws:s3:::services-builds-lists/*"
-                  - "arn:aws:s3:::services-builds-notfound/*"
-                  - "arn:aws:s3:::services-builds-products/*"
-                  - "arn:aws:s3:::services-builds-contact/*"
-        - PolicyName: ManageDynamoDB
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - dynamodb:DescribeTable
-                  - dynamodb:CreateTable
-                  - dynamodb:DeleteTable
-                  - dynamodb:UpdateTable
-                  - dynamodb:DescribeContinuousBackups
-                  - dynamodb:UpdateContinuousBackups
-                Effect: Allow
-                Resource:
-                  - "arn:aws:dynamodb:*:*:table/*"
-              - Action:
-                  - dynamodb:ListTables
-                Effect: Allow
-                Resource:
-                  - "*"
+                  - "arn:aws:s3:::pipeline-services-builds-lists/*"
+                  - "arn:aws:s3:::pipeline-services-builds-notfound/*"
+                  - "arn:aws:s3:::pipeline-services-builds-products/*"
+                  - "arn:aws:s3:::pipeline-services-builds-contact/*"
+                  - "arn:aws:s3:::pipeline-services-email-templates/*"
         - PolicyName: ManageIam
           PolicyDocument:
             Version: '2012-10-17'
@@ -1047,45 +1334,6 @@ Resources:
                 Effect: Allow
                 Resource:
                   - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/KPI*'
-
-  EmailCFNRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub 'pipeline-${PipelineName}-EmailCFN-Role'
-      AssumeRolePolicyDocument:
-        Statement:
-        - Action: ['sts:AssumeRole']
-          Effect: Allow
-          Principal:
-            Service: [cloudformation.amazonaws.com]
-        Version: '2012-10-17'
-      Path: /
-      Policies:
-        - PolicyName: ManageCloudFormation
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - cloudformation:CreateChangeSet
-                  - cloudformation:CreateStack
-                  - cloudformation:CreateUploadBucket
-                  - cloudformation:DeleteStack
-                  - cloudformation:Describe*
-                  - cloudformation:List*
-                  - cloudformation:UpdateStack
-                  - cloudformation:ValidateTemplate
-                  - cloudformation:ExecuteChangeSet
-                Effect: Allow
-                Resource: '*'
-        - PolicyName: ManageS3
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - s3:GetObject
-                Effect: Allow
-                Resource:
-                  - "arn:aws:s3:::services-email-templates/*"
         - PolicyName: ManageSES
           PolicyDocument:
             Version: '2012-10-17'
@@ -1095,177 +1343,6 @@ Resources:
                 Effect: Allow
                 Resource:
                   - "*"
-
-  ServicesBuildProject:
-    Type: AWS::CodeBuild::Project
-    DependsOn: ServicesLogGroup
-    Properties:
-      Name: Services-API-Builds
-      Description: Builds Services repo APIs
-      ServiceRole: !GetAtt ServicesBuildRole.Arn
-      Artifacts:
-        Type: CODEPIPELINE
-      Cache:
-        Type: LOCAL
-        Modes:
-        - LOCAL_DOCKER_LAYER_CACHE
-      Environment:
-        Type: LINUX_CONTAINER
-        ComputeType: BUILD_GENERAL1_SMALL
-        Image: aws/codebuild/standard:4.0
-        EnvironmentVariables:
-          - Name: LISTS_BUILD_OUTPUT_BUCKET
-            Value: !Ref ListsBuildsBucket
-          - Name: NOTFOUND_BUILD_OUTPUT_BUCKET
-            Value: !Ref NotFoundBuildsBucket
-          - Name: PRODUCTS_BUILD_OUTPUT_BUCKET
-            Value: !Ref ProductsBuildsBucket
-          - Name: CONTACT_BUILD_OUTPUT_BUCKET
-            Value: !Ref ContactBuildsBucket
-      Source:
-        Type: CODEPIPELINE
-        BuildSpec: buildspec.yaml
-      LogsConfig:
-        CloudWatchLogs:
-          Status: ENABLED
-          GroupName: services-logs
-          StreamName: Builds
-      TimeoutInMinutes: 10
-
-  ServicesUnitTestsProject:
-    Type: AWS::CodeBuild::Project
-    DependsOn: ServicesLogGroup
-    Properties:
-      Name: Services-UnitTests
-      Description: Performs the unit testing of the lambda functions.
-      ServiceRole: !GetAtt ServicesBuildRole.Arn
-      Artifacts:
-        Type: CODEPIPELINE
-      Cache:
-        Type: LOCAL
-        Modes:
-        - LOCAL_DOCKER_LAYER_CACHE
-      Environment:
-        Type: LINUX_CONTAINER
-        ComputeType: BUILD_GENERAL1_SMALL
-        Image: aws/codebuild/standard:4.0
-      Source:
-        Type: CODEPIPELINE
-        BuildSpec: buildspec-unittests.yaml
-      LogsConfig:
-        CloudWatchLogs:
-          Status: ENABLED
-          GroupName: services-logs
-          StreamName: UnitTests
-      TimeoutInMinutes: 10
-
-  ServicesIntegrationTestsProject:
-    DependsOn: ServicesLogGroup
-    Type: 'AWS::CodeBuild::Project'
-    Properties:
-      Name: Services-Integration-Tests
-      Description: Performs integration testing via Postman API.
-      Artifacts:
-        Type: CODEPIPELINE
-      Cache:
-        Type: LOCAL
-        Modes:
-        - LOCAL_DOCKER_LAYER_CACHE
-      Environment:
-        Type: LINUX_CONTAINER
-        ComputeType: BUILD_GENERAL1_SMALL
-        Image: 'aws/codebuild/standard:4.0'
-      ServiceRole: !GetAtt ServicesBuildRole.Arn
-      Source:
-        Type: CODEPIPELINE
-        BuildSpec: buildspec-postman.yaml
-      LogsConfig:
-        CloudWatchLogs:
-          Status: ENABLED
-          GroupName: services-logs
-          StreamName: Integration-Tests
-
-  ServicesBuildRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: ServicesBuildAndTestRole
-      AssumeRolePolicyDocument:
-        Statement:
-        - Effect: Allow
-          Principal:
-            Service:
-            - codebuild.amazonaws.com
-          Action:
-          - sts:AssumeRole
-      Path: "/"
-      Policies:
-      - PolicyName: ServicesRolePolicy
-        PolicyDocument:
-          Statement:
-          - Effect: Allow
-            Action:
-              - logs:CreateLogGroup
-              - logs:CreateLogStream
-              - logs:PutLogEvents
-            Resource:
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:services-logs"
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:services-logs:*"
-          - Effect: Allow
-            Action:
-              - s3:PutObject
-              - s3:GetObject
-              - s3:GetObjectVersion
-              - s3:GetBucketAcl
-              - s3:GetBucketLocation
-            Resource:
-              - !Sub "arn:aws:s3:::${EUWest1ArtifactBucketName}/*"
-              - "arn:aws:s3:::services-builds-lists/*"
-              - "arn:aws:s3:::services-builds-notfound/*"
-              - "arn:aws:s3:::services-builds-products/*"
-              - "arn:aws:s3:::services-builds-contact/*"
-              - "arn:aws:s3:::services-email-templates/*"
-          - Effect: Allow
-            Action:
-              - ssm:GetParameters
-            Resource:
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/Postman/*"
-          Version: '2012-10-17'
-
-  ServicesLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: services-logs
-      RetentionInDays: 30
-
-  E2ETestsProject:
-    Type: 'AWS::CodeBuild::Project'
-    Properties:
-      Name: Web-E2E-Tests
-      Description: Performs end-to-end tests with cypress.
-      Artifacts:
-        Type: CODEPIPELINE
-      Cache:
-        Type: LOCAL
-        Modes:
-        - LOCAL_DOCKER_LAYER_CACHE
-      Environment:
-        Type: LINUX_CONTAINER
-        ComputeType: BUILD_GENERAL1_SMALL
-        Image: 'aws/codebuild/standard:4.0'
-      ServiceRole: !GetAtt E2EBuildProjectRole.Arn
-      Source:
-        Type: CODEPIPELINE
-        BuildSpec: buildspec-cypress.yaml
-      LogsConfig:
-        CloudWatchLogs:
-          Status: ENABLED
-          GroupName: !Ref ServicesLogGroup
-          StreamName: E2E-Tests
-      BuildBatchConfig:
-        ServiceRole: !Ref E2EBatchServiceRole
-        TimeoutInMins: 15
-        Restrictions:
-          MaximumBuildsAllowed: 10
 
   E2EBuildProjectRole:
     Type: AWS::IAM::Role
@@ -1300,7 +1377,7 @@ Resources:
               - s3:GetBucketAcl
               - s3:GetBucketLocation
             Resource:
-              - !Sub "arn:aws:s3:::${EUWest1ArtifactBucketName}/*"
+              - !Sub "arn:aws:s3:::${PipelineArtifactBucket}/*"
           Version: '2012-10-17'
       - PolicyName: CypressScriptsPolicy
         PolicyDocument:
@@ -1313,7 +1390,6 @@ Resources:
               - cognito-idp:AdminDeleteUser
             Resource:
               - Fn::ImportValue: Auth-staging-UserPoolArn
-              - Fn::ImportValue: Auth-prod-UserPoolArn
           - Effect: Allow
             Action:
               - 'dynamodb:PutItem'
@@ -1323,13 +1399,9 @@ Resources:
               - 'dynamodb:Scan'
               - 'dynamodb:DeleteItem'
             Resource:
-              - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/lists-prod"
-              - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/lists-prod/*"
               - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/lists-staging"
               - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/lists-staging/*"
-              - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/notfound-prod"
               - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/notfound-staging"
-              - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/products-prod"
               - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/products-staging"
           - Effect: Allow
             Action:
@@ -1338,6 +1410,26 @@ Resources:
               - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/Cypress/Web/Key"
               - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/Cypress/GT/*"
           Version: '2012-10-17'
+      - PolicyName: BucketEncryptionPolicy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - kms:DescribeKey
+              - kms:GenerateDataKey*
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:Decrypt
+            Resource: !GetAtt pipelineKey.Arn
+          Version: '2012-10-17'
+      - PolicyName: AssumeProdRolePolicy
+        PolicyDocument:
+          Statement:
+            - Effect: Allow
+              Action:
+                - sts:AssumeRole
+              Resource:
+                - !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountE2ERoleName}"
 
   E2EBatchServiceRole:
     Type: AWS::IAM::Role
@@ -1362,45 +1454,79 @@ Resources:
               - codebuild:StopBuild
               - codebuild:RetryBuild
             Resource:
-              - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/Web-E2E-Tests'
+              - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/Web-E2E-Tests-Staging'
+              - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/Web-E2E-Tests-Prod'
+          Version: '2012-10-17'
+      - PolicyName: BucketEncryptionPolicy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - kms:DescribeKey
+              - kms:GenerateDataKey*
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:Decrypt
+            Resource: !GetAtt pipelineKey.Arn
           Version: '2012-10-17'
 
-
-  WebDeployContentProject:
-    Type: 'AWS::CodeBuild::Project'
+  ServicesBuildRole:
+    Type: AWS::IAM::Role
     Properties:
-      Name: Web-Deploy-Content
-      Description: Deploys react web application
-      Artifacts:
-        Type: CODEPIPELINE
-      Cache:
-        Type: LOCAL
-        Modes:
-        - LOCAL_DOCKER_LAYER_CACHE
-      Environment:
-        Type: LINUX_CONTAINER
-        ComputeType: BUILD_GENERAL1_SMALL
-        Image: aws/codebuild/standard:4.0
-        EnvironmentVariables:
-          - Name: WEB_BUCKET
-            Value: !Ref WebBucketName
-          - Name: ENVIRONMENT
-            Value: prod
-      ServiceRole: !GetAtt WebDeployContentRole.Arn
-      Source:
-        Type: CODEPIPELINE
-        BuildSpec: buildspec-react.yaml
-      LogsConfig:
-        CloudWatchLogs:
-          Status: ENABLED
-          GroupName: web
-          StreamName: DeployContent
-
-  WebDeployContentLogsGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: web
-      RetentionInDays: 30
+      RoleName: ServicesBuildAndTestRole
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - codebuild.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: ServicesRolePolicy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource:
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:services-logs"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:services-logs:*"
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:GetBucketAcl
+              - s3:GetBucketLocation
+            Resource:
+              - !Sub "arn:aws:s3:::${PipelineArtifactBucket}/*"
+              - "arn:aws:s3:::pipeline-services-builds-lists/*"
+              - "arn:aws:s3:::pipeline-services-builds-notfound/*"
+              - "arn:aws:s3:::pipeline-services-builds-products/*"
+              - "arn:aws:s3:::pipeline-services-builds-contact/*"
+              - "arn:aws:s3:::pipeline-services-email-templates/*"
+          - Effect: Allow
+            Action:
+              - ssm:GetParameters
+            Resource:
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/Postman/*"
+          Version: '2012-10-17'
+      - PolicyName: BucketEncryptionPolicy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - kms:DescribeKey
+              - kms:GenerateDataKey*
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:Decrypt
+            Resource: !GetAtt pipelineKey.Arn
+          Version: '2012-10-17'
 
   WebDeployContentRole:
     Type: AWS::IAM::Role
@@ -1436,9 +1562,7 @@ Resources:
               - s3:GetBucketVersioning
               - s3:ListBucket
             Resource:
-              - !Sub "arn:aws:s3:::${EUWest1ArtifactBucketName}/*"
-              - !Sub "arn:aws:s3:::${WebBucketName}/*"
-              - !Sub "arn:aws:s3:::${WebBucketName}"
+              - !Sub "arn:aws:s3:::${PipelineArtifactBucket}/*"
               - !Sub "arn:aws:s3:::staging.${WebBucketName}/*"
               - !Sub "arn:aws:s3:::staging.${WebBucketName}"
           - Effect: Allow
@@ -1451,3 +1575,82 @@ Resources:
               - codepipeline:ListPipelineExecutions
             Resource: '*'
           Version: '2012-10-17'
+      - PolicyName: AssumeProdRolePolicy
+        PolicyDocument:
+          Statement:
+            - Effect: Allow
+              Action:
+                - sts:AssumeRole
+              Resource:
+                - !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountDeployWebContentRoleName}"
+      - PolicyName: BucketEncryptionPolicy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - kms:DescribeKey
+              - kms:GenerateDataKey*
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:Decrypt
+            Resource: !GetAtt pipelineKey.Arn
+          Version: '2012-10-17'
+
+  WebDeployContentLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: web
+      RetentionInDays: 30
+
+  ServicesLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: services-logs
+      RetentionInDays: 30
+
+  pipelineKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: Symmetric CMK for Main pipeline to have cross-account permissions
+      KeyPolicy:
+        Version: '2012-10-17'
+        Id: key-default-1
+        Statement:
+        - Sid: Enable IAM User Permissions
+          Effect: Allow
+          Principal:
+            AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+          Action: kms:*
+          Resource: '*'
+        - Sid: Allow administration of the key
+          Effect: Allow
+          Principal:
+            AWS: !Sub "arn:aws:iam::${AWS::AccountId}:role/AdminAccessRole"
+          Action:
+          - kms:Create*
+          - kms:Describe*
+          - kms:Enable*
+          - kms:List*
+          - kms:Put*
+          - kms:Update*
+          - kms:Revoke*
+          - kms:Disable*
+          - kms:Get*
+          - kms:Delete*
+          - kms:ScheduleKeyDeletion
+          - kms:CancelKeyDeletion
+          Resource: '*'
+        - Sid: Allow use of the key
+          Effect: Allow
+          Principal:
+            AWS:
+              - !GetAtt PipelineRole.Arn
+              - !Sub "arn:aws:iam::{{resolve:ssm:/accounts/prod:1}}:role/${PipelineCrossAccountRoleName}"
+          Action:
+          - kms:DescribeKey
+          - kms:Encrypt
+          - kms:Decrypt
+          - kms:ReEncrypt*
+          - kms:GenerateDataKey
+          - kms:GenerateDataKeyWithoutPlaintext
+          Resource: '*'

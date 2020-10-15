@@ -2,7 +2,7 @@
 ## AWS Cli Authentication
 To generate a session for the required AWS profile:
 ```
-. aws-auth --profile_name ListsMain --token_code 123456 [--duration 18000]
+. aws-auth --profile_name ListsDev --token_code 123456 [--duration 18000]
 ```
 
 ## Github Administration

@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Hosted Zone for sub domain.
+Parameters:
+  DomainName:
+    Description: Domain name for your website (example.com)
+    Type: String
+    ConstraintDescription: Must be a web domain, ending in .com. Can include lower case letters, numbers and hypens.
+    Default: ewelists.com
+  AlternateDomainName:
+    Description: Domain name for your website (example.com)
+    Type: String
+    ConstraintDescription: Must be a web domain, ending in .com. Can include lower case letters, numbers and hypens.
+    Default: ewelists.co.uk
+  Environment:
+    Description: Environment type.
+    Default: test
+    Type: String
+    AllowedValues:
+      - staging
+      - dev
+      - test
+    ConstraintDescription: must specify staging, dev or test.
+
+Resources:
+  SubDomainHostedZone:
+    Type: "AWS::Route53::HostedZone"
+    Properties:
+      HostedZoneConfig:
+        Comment: "Hosted zone for a subdomain"
+      Name: !Sub "${Environment}.${DomainName}"
+      HostedZoneTags:
+        - Key: "Environment"
+          Value: !Ref Environment
+
+  CoUkSubDomainHostedZone:
+    Type: "AWS::Route53::HostedZone"
+    Properties:
+      HostedZoneConfig:
+        Comment: "Hosted zone for a subdomain of main site, used for testing"
+      Name: !Sub "${Environment}.${AlternateDomainName}"
+      HostedZoneTags:
+        - Key: "Environment"
+          Value: !Ref Environment
+
+Outputs:
+  HostedZone:
+    Description: HostedZoneID of sub domain
+    Value: !Ref SubDomainHostedZone
+
+  HostedZoneResourceRecords:
+    Description: Resource Records of sub domain hosted zone.
+    Value: !Join
+      - ','
+      - !GetAtt SubDomainHostedZone.NameServers
+
+  CoUkHostedZone:
+    Description: HostedZoneID of .co.uk sub domain
+    Value: !Ref CoUkSubDomainHostedZone
+
+  CoUkHostedZoneResourceRecords:
+    Description: Resource Records of sub domain hosted zone.
+    Value: !Join
+      - ','
+      - !GetAtt CoUkSubDomainHostedZone.NameServers

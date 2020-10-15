@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Delegates hosted zone for sub domain to another account.
+Parameters:
+  DomainName:
+    Description: Domain name for your website (example.com)
+    Type: String
+    ConstraintDescription: Must be a web domain, ending in .com. Can include lower case letters, numbers and hypens.
+    Default: ewelists.com
+  AlternateDomainName:
+    Description: Alternate Domain name for your website (example.co.uk)
+    Type: String
+    Default: ewelists.co.uk
+    ConstraintDescription: Must be a web domain, ending in .com. Can include lower case letters, numbers and hypens.
+  ResourceRecords:
+    Description: Comma delimited list of strings
+    Type: CommaDelimitedList
+  CoUkResourceRecords:
+    Description: Comma delimited list of strings
+    Type: CommaDelimitedList
+  Environment:
+    Description: Environment type.
+    Default: test
+    Type: String
+    AllowedValues:
+      - staging
+      - dev
+      - test
+    ConstraintDescription: must specify staging, dev or test.
+
+Resources:
+  SubDomainRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: 'ewelists.com.'
+      Comment: Naming servers for subdomain hosted zone.
+      Name: !Sub "${Environment}.${DomainName}"
+      Type: NS
+      TTL: '172800'
+      ResourceRecords: !Ref ResourceRecords
+
+  CoUkSubDomainRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: 'ewelists.co.uk.'
+      Comment: Naming servers for subdomain hosted zone.
+      Name: !Sub "${Environment}.${AlternateDomainName}"
+      Type: NS
+      TTL: '172800'
+      ResourceRecords: !Ref CoUkResourceRecords

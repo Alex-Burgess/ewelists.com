@@ -9,9 +9,28 @@ def convert_csv_to_json_list(file):
     with open(file) as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
-            data = {}
-            data['productId'] = row['productId']
-            data['retailer'] = row['retailer']
+            data = {
+                'productId': {'S': row['productId']},
+                'retailer': {'S': row['retailer']},
+                'brand': {'S': row['brand']},
+                'details': {'S': row['details']},
+                'productUrl': {'S': row['productUrl']},
+                'imageUrl': {'S': row['imageUrl']}
+            }
+
+            if 'price' in row:
+                if len(row['price']) > 0:
+                    data['price'] = {'S': row['price']}
+
+            if 'priceCheckedDate' in row:
+                if len(row['priceCheckedDate']) > 0:
+                    data['priceCheckedDate'] = {'S': row['priceCheckedDate']}
+
+            if 'createdAt' in row:
+                if len(row['createdAt']) > 0:
+                    data['createdAt'] = {'N': row['createdAt']}
+
+            # print("Item: " + str(data))
 
             items.append(data)
     return items
@@ -19,7 +38,7 @@ def convert_csv_to_json_list(file):
 
 def batch_write(items):
     dynamodb = boto3.resource('dynamodb')
-    db = dynamodb.Table('table-name')
+    db = dynamodb.Table(table_name)
 
     with db.batch_writer() as batch:
         for item in items:
@@ -30,17 +49,10 @@ def update_table(items):
     dynamodb = boto3.client('dynamodb')
 
     for item in items:
-        print("Updating " + item['productId'] + " with " + item['retailer'])
-        dynamodb.update_item(
-            TableName=table_name,
-            Key={'productId': {'S': item['productId']}},
-            UpdateExpression="set retailer = :r",
-            ExpressionAttributeValues={
-             ':r': {'S': item["retailer"]}
-            },
-        )
+        dynamodb.put_item(TableName=table_name, Item=item)
 
 
 if __name__ == '__main__':
-    json_data = convert_csv_to_json_list('products-prod-import.csv')
+    json_data = convert_csv_to_json_list('products-staging.csv')
     update_table(json_data)
+    # batch_write(json_data)

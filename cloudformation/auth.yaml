@@ -55,6 +55,7 @@ Conditions:
 
 Resources:
   UserPoolClient:
+    DependsOn: [FacebookIdentityProvider, GoogleIdentityProvider, AmazonIdentityProvider]
     Type: AWS::Cognito::UserPoolClient
     Properties:
       AllowedOAuthFlows:

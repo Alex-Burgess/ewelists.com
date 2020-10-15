@@ -13,14 +13,9 @@ Parameters:
     AllowedPattern: "^[a-z0-9-]*.co.uk$"
     ConstraintDescription: Must be a web domain, ending in .co.uk. Can include lower case letters, numbers and hypens.
     Default: ewelists.co.uk
-  DefaultSSLCertificate:
-    Description: Boolean flag which defines if cloudfront should use the default SSL certificate.  If parameter is not true a SSL certificate ID is retrieved from parameter store.
-    Type: String
-    Default: false
   SSLCertificateIdParameterVersion:
     Description: Version number of the parameter which stores the SSL certificate ID.
     Type: String
-    Default: 1
   Environment:
     Description: Environment type.
     Default: test
@@ -34,8 +29,6 @@ Parameters:
 
 Conditions:
   Prod: !Equals [ !Ref Environment, prod ]
-  NotProd: !Not [!Equals [!Ref Environment, prod]]
-  UseDefaultSSLCertificate: !Equals [ "true", !Ref DefaultSSLCertificate ]
 
 Resources:
   LoggingBucket:
@@ -193,7 +186,7 @@ Resources:
           Bucket: !GetAtt LoggingBucket.DomainName
           Prefix: !Sub 'cf-${WebBucket}-logs/'
         Aliases:
-          - !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", !Sub '${WebBucket}' ]
+          - !Ref WebBucket
         DefaultCacheBehavior:
           TargetOriginId: !Sub 'S3-${WebBucket}'
           Compress: true
@@ -222,14 +215,9 @@ Resources:
           ErrorCachingMinTTL: 300
         PriceClass: PriceClass_100
         ViewerCertificate:
-          AcmCertificateArn:
-            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", !Sub 'arn:aws:acm:us-east-1:${AWS::AccountId}:certificate/{{resolve:ssm:/${DomainName}/${Environment}/SSLCertificateId:${SSLCertificateIdParameterVersion}}}']
-          SslSupportMethod:
-            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", sni-only]
-          MinimumProtocolVersion:
-            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", TLSv1.1_2016]
-          CloudFrontDefaultCertificate:
-            !If [UseDefaultSSLCertificate, true, !Ref "AWS::NoValue" ]
+          AcmCertificateArn: !Sub 'arn:aws:acm:us-east-1:${AWS::AccountId}:certificate/{{resolve:ssm:/${DomainName}/${Environment}/SSLCertificateId:${SSLCertificateIdParameterVersion}}}'
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.1_2016
 
   RedirectDistribution:
     Type: AWS::CloudFront::Distribution
@@ -250,7 +238,7 @@ Resources:
           Bucket: !GetAtt LoggingBucket.DomainName
           Prefix: !Sub 'cf-www.${WebBucket}-logs/'
         Aliases:
-          - !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", !Sub '${RedirectBucket}' ]
+          - !Ref RedirectBucket
         DefaultCacheBehavior:
           TargetOriginId: !Sub 'S3-${RedirectBucket}'
           ForwardedValues:
@@ -260,14 +248,9 @@ Resources:
           ViewerProtocolPolicy: allow-all
         PriceClass: PriceClass_100
         ViewerCertificate:
-          AcmCertificateArn:
-            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", !Sub 'arn:aws:acm:us-east-1:${AWS::AccountId}:certificate/{{resolve:ssm:/${DomainName}/${Environment}/SSLCertificateId:${SSLCertificateIdParameterVersion}}}']
-          SslSupportMethod:
-            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", sni-only]
-          MinimumProtocolVersion:
-            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", TLSv1.1_2016]
-          CloudFrontDefaultCertificate:
-            !If [UseDefaultSSLCertificate, true, !Ref "AWS::NoValue" ]
+          AcmCertificateArn: !Sub 'arn:aws:acm:us-east-1:${AWS::AccountId}:certificate/{{resolve:ssm:/${DomainName}/${Environment}/SSLCertificateId:${SSLCertificateIdParameterVersion}}}'
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.1_2016
 
   CoUkBucket:
     Type: AWS::S3::Bucket
@@ -322,7 +305,7 @@ Resources:
           Bucket: !GetAtt LoggingBucket.DomainName
           Prefix: !Sub 'cf-${CoUkBucket}-logs/'
         Aliases:
-        - !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", !Sub '${CoUkBucket}' ]
+          - !Ref CoUkBucket
         DefaultCacheBehavior:
           TargetOriginId: !Sub 'S3-${CoUkBucket}'
           ForwardedValues:
@@ -332,14 +315,9 @@ Resources:
           ViewerProtocolPolicy: allow-all
         PriceClass: PriceClass_100
         ViewerCertificate:
-          AcmCertificateArn:
-            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", !Sub 'arn:aws:acm:us-east-1:${AWS::AccountId}:certificate/{{resolve:ssm:/${DomainName}/${Environment}/SSLCertificateId:${SSLCertificateIdParameterVersion}}}']
-          SslSupportMethod:
-            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", sni-only]
-          MinimumProtocolVersion:
-            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", TLSv1.1_2016]
-          CloudFrontDefaultCertificate:
-            !If [UseDefaultSSLCertificate, true, !Ref "AWS::NoValue" ]
+          AcmCertificateArn: !Sub 'arn:aws:acm:us-east-1:${AWS::AccountId}:certificate/{{resolve:ssm:/${DomainName}/${Environment}/SSLCertificateId:${SSLCertificateIdParameterVersion}}}'
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.1_2016
 
   WwwCoUkDistribution:
     Type: AWS::CloudFront::Distribution
@@ -360,7 +338,7 @@ Resources:
           Bucket: !GetAtt LoggingBucket.DomainName
           Prefix: !Sub 'cf-www.${CoUkBucket}-logs/'
         Aliases:
-        - !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", !Sub 'www.${CoUkBucket}' ]
+          - !Sub 'www.${CoUkBucket}'
         DefaultCacheBehavior:
           TargetOriginId: !Sub 'S3-www.${CoUkBucket}'
           ForwardedValues:
@@ -370,36 +348,9 @@ Resources:
           ViewerProtocolPolicy: allow-all
         PriceClass: PriceClass_100
         ViewerCertificate:
-          AcmCertificateArn:
-            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", !Sub 'arn:aws:acm:us-east-1:${AWS::AccountId}:certificate/{{resolve:ssm:/${DomainName}/${Environment}/SSLCertificateId:${SSLCertificateIdParameterVersion}}}']
-          SslSupportMethod:
-            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", sni-only]
-          MinimumProtocolVersion:
-            !If [UseDefaultSSLCertificate, !Ref "AWS::NoValue", TLSv1.1_2016]
-          CloudFrontDefaultCertificate:
-            !If [UseDefaultSSLCertificate, true, !Ref "AWS::NoValue" ]
-
-  SubDomainHostedZone:
-    Type: "AWS::Route53::HostedZone"
-    Condition: NotProd
-    Properties:
-      HostedZoneConfig:
-        Comment: "Hosted zone for a subdomain of main site, used for testing"
-      Name: !Ref 'WebBucket'
-      HostedZoneTags:
-        - Key: "Environment"
-          Value: !Ref Environment
-
-  SubDomainRecord:
-    Type: AWS::Route53::RecordSet
-    Condition: NotProd
-    Properties:
-      HostedZoneName: !Join [ '', [ !Ref DomainName, "." ] ]
-      Comment: Naming servers for subdomain hosted zone.
-      Name: !Ref 'WebBucket'
-      Type: NS
-      TTL: '172800'
-      ResourceRecords: !GetAtt SubDomainHostedZone.NameServers
+          AcmCertificateArn: !Sub 'arn:aws:acm:us-east-1:${AWS::AccountId}:certificate/{{resolve:ssm:/${DomainName}/${Environment}/SSLCertificateId:${SSLCertificateIdParameterVersion}}}'
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.1_2016
 
   WebsiteDNSName:
     Type: AWS::Route53::RecordSetGroup
@@ -416,28 +367,6 @@ Resources:
         AliasTarget:
           HostedZoneId: Z2FDTNDATAQYW2
           DNSName: !GetAtt [RedirectDistribution, DomainName]
-
-  CoUkSubDomainHostedZone:
-    Type: "AWS::Route53::HostedZone"
-    Condition: NotProd
-    Properties:
-      HostedZoneConfig:
-        Comment: "Hosted zone for a subdomain of main site, used for testing"
-      Name: !Ref 'CoUkBucket'
-      HostedZoneTags:
-        - Key: "Environment"
-          Value: !Ref Environment
-
-  CoUkSubDomainRecord:
-    Type: AWS::Route53::RecordSet
-    Condition: NotProd
-    Properties:
-      HostedZoneName: !Join [ '', [ !Ref AlternateDomainName, "." ] ]
-      Comment: Naming servers for subdomain hosted zone.
-      Name: !Ref 'CoUkBucket'
-      Type: NS
-      TTL: '172800'
-      ResourceRecords: !GetAtt CoUkSubDomainHostedZone.NameServers
 
   CoUkWebsiteDNSName:
     Type: AWS::Route53::RecordSetGroup

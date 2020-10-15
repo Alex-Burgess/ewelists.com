@@ -238,7 +238,7 @@ aws cloudformation create-stack --stack-name Database-Test \
  --parameters ParameterKey=Environment,ParameterValue=test
 ```
 
-**Backed API Services**
+**Backend API Services**
 Latest details on setting up local python environment are in the [Services repo](https://github.com/Ewelists/ewelists.com-services).
 
 1. Create an S3 Bucket for each services SAM builds
@@ -256,7 +256,7 @@ Latest details on setting up local python environment are in the [Services repo]
 
     aws s3 cp . s3://email-templates-ewelists-test/ --recursive --exclude "*" --include "email-template-*"
 
-    aws cloudformation update-stack --stack-name Email-Templates-Test \
+    aws cloudformation create-stack --stack-name Email-Templates-Test \
      --template-body file://email-templates-master-stack.yaml \
      --parameters ParameterKey=Environment,ParameterValue=test \
         ParameterKey=BucketEndpoint,ParameterValue=https://email-templates-ewelists-test.s3-eu-west-1.amazonaws.com
@@ -333,37 +333,39 @@ Latest details on setting up local python environment are in the [Services repo]
 
 **Web Application**
 
+1. **DNS Hosted Zone:**
+    ```
+    aws cloudformation create-stack --stack-name Web-HostedZone-Test --template-body file://web-hostedzone.yaml \
+      --parameters ParameterKey=Environment,ParameterValue=test
+    ```
+1. **Delegate domain (In Prod Account):** If environment is test or staging, the hosted zone needs to be delegated from main domain.  Resource records are output from command above.
+    ```
+    aws cloudformation create-stack --stack-name Web-SubDomain-Test --template-body file://web-subdomain-record.yaml \
+      --parameters ParameterKey=Environment,ParameterValue=test \
+      ParameterKey=ResourceRecords,ParameterValue="ns-1028.awsdns-00.org\,ns-29.awsdns-03.com\,ns-626.awsdns-14.net\,ns-1636.awsdns-12.co.uk" \
+      ParameterKey=CoUkResourceRecords,ParameterValue="ns-1028.awsdns-00.org\,ns-29.awsdns-03.com\,ns-626.awsdns-14.net\,ns-1636.awsdns-12.co.uk"
+    ```
+1. **Create SSL Certificate:**
+    ```
+    aws cloudformation create-stack --region us-east-1 --stack-name Web-SSL-Test \
+    --template-body file://web-sslcert.yaml \
+    --parameters ParameterKey=Environment,ParameterValue=test \
+      ParameterKey=HostedZone,ParameterValue=ABCDEFGHIJKL123456789
+
+    aws ssm put-parameter --name /ewelists.com/test/SSLCertificateId --type String \
+     --value "f38ecd9a-...."
+    ```
 1. **Web Stack:** Create Web stack with default SSL certificate.
     ```
     aws cloudformation create-stack --stack-name Web-Test --template-body file://web.yaml \
       --parameters ParameterKey=Environment,ParameterValue=test \
-      ParameterKey=DefaultSSLCertificate,ParameterValue=true
+        ParameterKey=SSLCertificateIdParameterVersion,ParameterValue=1
     ```
 1. **Content:** Create a build of the content and copy to S3.
     ```
     npm run build
     mv build/staging.robots.txt build/robots.txt
     aws s3 sync build/ s3://test.ewelists.com --delete
-    ```
-1. **SSL Certificate:** Create SSL certificate. Stack will remain in CREATE_IN_PROGRESS state until the certificate is validated, so proceed to next step - see [acm docs](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-certificatemanager-certificate.html) for more details.
-    ```
-    aws cloudformation create-stack --region us-east-1 --stack-name Web-SSL-Test \
-    --template-body file://web-sslcert.yaml \
-    --parameters ParameterKey=Environment,ParameterValue=test
-    ```
-1. **Validate SSL Certificate:** Validate certificate request using console (See [blog](https://aws.amazon.com/blogs/security/easier-certificate-validation-using-dns-with-aws-certificate-manager/) for steps).
-1. **Parameter Store:** Create a parameter to store the SSL certificate ID.
-    ```
-    aws cloudformation describe-stacks --stack-name Web-SSL-Test --region us-east-1 \
-     --query 'Stacks[].Outputs[?OutputKey==`CertificateArn`].OutputValue' --output text | awk -F\/ '{print $2}'
-
-    aws ssm put-parameter --name /ewelists.com/test/SSLCertificateId --type String \
-     --value "f38ecd9a-...."
-    ```
-1. **Update Web Stack:** Update the main stack to use the SSL certificate.
-    ```
-    aws cloudformation update-stack --stack-name Web-Test --template-body file://web.yaml \
-      --parameters ParameterKey=Environment,ParameterValue=test
     ```
 1. **Test:** Browse to https://test.ewelists.com (**Note:** Sign up and log in does not work unless User Pool Callback URLs are updated.)
 
@@ -424,7 +426,8 @@ sam deploy \
 1. **Update Web Stack:** Update the main stack to use the SSL certificate.
     ```
     aws cloudformation update-stack --stack-name Web-Test --template-body file://web.yaml \
-      --parameters ParameterKey=Environment,ParameterValue=test
+      --parameters ParameterKey=Environment,ParameterValue=test \
+        ParameterKey=SSLCertificateIdParameterVersion,ParameterValue=1
     ```
 1. **Invalidate Cache:**
     ```
@@ -474,7 +477,15 @@ The main repo is triggered whenever there is a commit to the main branch, which 
 
 However, at the moment they do not accept wildcard tags, so tagging with 'web-1.0.0' doesn't trigger the pipeline. If wildcards do become available this could be a useful addition.
 
+**Cyclic Dependencies**
+To configure the pipeline, there are a number of cyclic dependencies:
+- Pipeline CMK which requires cross account roles to exist, but who's role policy references the CMK. (Steps, create key, then cross account role and policy, then policy for CMK)
 
+Without the cross account role, we can't create the following which depend on it:
+- Services build bucket policies, which permission access to the cross account role
+- Pipeline stages which will use the cross account role.
+
+There are likely further examples.  This could be broken into additional stacks/steps e.g. a pipeline setup stack, which in the interests of time have been short-cut.
 
 **Pipeline Exclusions**
 
@@ -505,7 +516,12 @@ The auth and database stacks are not handled by the pipeline.
     aws ssm put-parameter --name /Postman/Environment/Staging --type String --value "6596444-ea7ff6c9-??????"
     aws ssm put-parameter --name /Postman/Environment/Prod --type String --value "6596444-ea7ff6c9-??????"
     ```
-1. Add the cognito userpool ID to parameter store:
+1. Setup parameter store variables in each account with account ids:
+    ```
+    aws ssm put-parameter --name /accounts/prod --type String --value "123456789012"
+    aws ssm put-parameter --region us-east-1 --name /accounts/prod --type String --value "123456789012"
+    ```
+1. Add the cognito userpool ID to parameter store: ??
     ```
     aws ssm put-parameter --name /CognitoUserPoolId/prod --type String --value "eu-west-1_12345678"
     ```
@@ -527,23 +543,33 @@ The auth and database stacks are not handled by the pipeline.
 1. **Pipeline Stack:** Create the stack, using the cli to import the oauth token from the parameter store.
 
     ```
-    aws s3 mb s3://infra-templates-ewelists
+    aws s3 mb s3://ewelists-infra-templates
 
-    aws s3 cp pipeline-web.yaml s3://infra-templates-ewelists
+    aws s3 cp pipeline-web.yaml s3://ewelists-infra-templates
 
     aws cloudformation create-stack --stack-name Pipeline-Web \
-     --template-body file://pipeline-web.yaml \
+     --template-url https://s3.amazonaws.com/ewelists-infra-templates/pipeline-web.yaml \
      --capabilities CAPABILITY_NAMED_IAM \
      --parameters ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text` \
        ParameterKey=GitHubSecret,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github_secret" --with-decryption --query 'Parameter.Value' --output text`
     ```
+1. **Pipeline CMK:** The pipeline stack creates a KMS CMK for encrypting bucket artifacts, which is necessary when performing cross account actions with the pipeline. In **prod** environments create a parameter:
+    ```
+    aws ssm put-parameter --name /Main/pipeline/cmk --type String --value "6596444-38afc6ee-????"
+    ```
+1. **Cross Account Test Roles (Prod):** Roles are required in the other environments to allow the pipeline to deploy stacks, etc.
+    ```
+    aws cloudformation create-stack --stack-name Pipeline-Main-Roles  \
+      --template-body file://pipeline-cross-account-roles.yaml  \
+      --capabilities CAPABILITY_NAMED_IAM
+    ```
 
 ### Update Web Pipeline
 ```
-aws s3 cp pipeline-web.yaml s3://infra-templates-ewelists
+aws s3 cp pipeline-web.yaml s3://ewelists-infra-templates
 
 aws cloudformation update-stack --stack-name Pipeline-Web \
- --template-url https://s3.amazonaws.com/infra-templates-ewelists/pipeline-web.yaml \
+ --template-url https://s3.amazonaws.com/ewelists-infra-templates/pipeline-web.yaml \
  --capabilities CAPABILITY_NAMED_IAM \
  --parameters ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text` \
    ParameterKey=GitHubSecret,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github_secret" --with-decryption --query 'Parameter.Value' --output text`
