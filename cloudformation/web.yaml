@@ -48,7 +48,7 @@ Resources:
           - Id: Logs expiration
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
-            ExpirationInDays: 30
+            ExpirationInDays: 21
             Prefix: ""
             Status: Enabled
 
