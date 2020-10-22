@@ -1100,7 +1100,6 @@ Resources:
                 Effect: Allow
                 Resource:
                   - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/ewelists.com/staging/SSLCertificateId'
-                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/ewelists.com/prod/SSLCertificateId'
         - PolicyName: ManageStagingS3
           PolicyDocument:
             Version: '2012-10-17'
@@ -1133,37 +1132,6 @@ Resources:
                   - "arn:aws:s3:::staging.ewelists.com-images"
                   - "arn:aws:s3:::staging.ewelists.com-redirects"
                   - "arn:aws:s3:::cognito-ewelists-backups-staging"
-        - PolicyName: ManageProdS3
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - s3:GetObject
-                  - s3:CreateBucket
-                  - s3:DeleteBucket
-                  - s3:PutBucketPublicAccessBlock
-                  - s3:PutLifecycleConfiguration
-                  - s3:PutBucketAcl
-                  - s3:GetBucketAcl
-                  - s3:PutBucketLogging
-                  - s3:PutMetricsConfiguration
-                  - s3:PutBucketWebsite
-                  - s3:PutBucketPolicy
-                  - s3:GetBucketPolicy
-                Effect: Allow
-                Resource:
-                  - "arn:aws:s3:::ewelists.com"
-                  - "arn:aws:s3:::ewelists.com/*"
-                  - "arn:aws:s3:::ewelists.co.uk"
-                  - "arn:aws:s3:::ewelists.co.uk/*"
-                  - "arn:aws:s3:::www.ewelists.com"
-                  - "arn:aws:s3:::www.ewelists.com/*"
-                  - "arn:aws:s3:::www.ewelists.co.uk"
-                  - "arn:aws:s3:::www.ewelists.co.uk/*"
-                  - "arn:aws:s3:::ewelists.com-logging"
-                  - "arn:aws:s3:::ewelists.com-logging/*"
-                  - "arn:aws:s3:::ewelists.com-images"
-                  - "arn:aws:s3:::ewelists.com-redirects"
         - PolicyName: ManageRoute53
           PolicyDocument:
             Version: '2012-10-17'
@@ -1188,62 +1156,6 @@ Resources:
                   - cloudfront:GetDistribution
                   - cloudfront:UpdateDistribution
                   - cloudfront:UpdateCloudFrontOriginAccessIdentity
-                Effect: Allow
-                Resource:
-                  - "*"
-
-  MonitoringCFNRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub 'pipeline-${PipelineName}-HealthCFN-Role'
-      AssumeRolePolicyDocument:
-        Statement:
-        - Action: ['sts:AssumeRole']
-          Effect: Allow
-          Principal:
-            Service: [cloudformation.amazonaws.com]
-        Version: '2012-10-17'
-      Path: /
-      Policies:
-        - PolicyName: ManageCloudFormation
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - cloudformation:CreateStack
-                  - cloudformation:DescribeStacks
-                  - cloudformation:DeleteStack
-                  - cloudformation:UpdateStack
-                  - cloudformation:CreateChangeSet
-                  - cloudformation:ExecuteChangeSet
-                  - cloudformation:DeleteChangeSet
-                  - cloudformation:DescribeChangeSet
-                Effect: Allow
-                Resource: '*'
-        - PolicyName: ManageRoute53
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - route53:*
-                Effect: Allow
-                Resource:
-                  - "*"
-        - PolicyName: ManageSNS
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - sns:*
-                Effect: Allow
-                Resource:
-                  - "*"
-        - PolicyName: ManageCloudwatchAlarms
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - cloudwatch:*
                 Effect: Allow
                 Resource:
                   - "*"
@@ -1287,8 +1199,6 @@ Resources:
                   - s3:PutBucketPublicAccessBlock
                 Effect: Allow
                 Resource:
-                  - "arn:aws:s3:::main-pipeline-eu-artificates-test/*"
-                  - "arn:aws:s3:::main-pipeline-us-artificates-test/*"
                   - "arn:aws:s3:::pipeline-services-builds-lists/*"
                   - "arn:aws:s3:::pipeline-services-builds-notfound/*"
                   - "arn:aws:s3:::pipeline-services-builds-products/*"

@@ -145,6 +145,13 @@ Resources:
               - arn:aws:s3:::ewelists.com/*
               - arn:aws:s3:::ewelists.com-logging
               - arn:aws:s3:::ewelists.com-logging/*
+              - arn:aws:s3:::ewelists.com-images
+              - arn:aws:s3:::ewelists.co.uk
+              - arn:aws:s3:::ewelists.co.uk/*
+              - arn:aws:s3:::www.ewelists.com
+              - arn:aws:s3:::www.ewelists.com/*
+              - arn:aws:s3:::www.ewelists.co.uk
+              - arn:aws:s3:::www.ewelists.co.uk/*
           - Action:
               - cloudfront:CreateCloudFrontOriginAccessIdentity
               - cloudfront:CreateDistribution

@@ -23,7 +23,7 @@ There are also some additional repositories that make up an Admin dashboard/tool
 - [Deployments](#deployments)
   - [Test Environment Updates](#test-environment-setup)
   - [Staging and Production Updates](#staging-and-production-setup)
-- [Deployment Pipeline](#deployment-pipleine)
+- [Deployment Pipeline](#deployment-pipleline)
 - [Testing](#testing)
 - [Monitoring](#monitoring)
 - [Backup Procedures](#backups)
@@ -451,7 +451,7 @@ sam deploy \
     aws cloudfront wait invalidation-completed --distribution-id ABCDEFGHIJK12 --id IJKLMNOPQRSTUV
     ```
 
-## Deployment Pipeline
+## Main Deployment Pipeline
 
 **Pipeline Execution**
 
@@ -574,6 +574,41 @@ aws cloudformation update-stack --stack-name Pipeline-Web \
  --parameters ParameterKey=GitHubToken,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github" --with-decryption --query 'Parameter.Value' --output text` \
    ParameterKey=GitHubSecret,ParameterValue=`aws ssm get-parameter --name "/ewelists.com/github_secret" --with-decryption --query 'Parameter.Value' --output text`
 ```
+
+## Monitoring Deployment Pipeline
+The monitoring stack must be created in the us-east-1 region.  In order to perform cross-account updates, the pipeline requires a CMK, which cannot be used cross-region, so a separate pipeline in the us-east-1 region is required.
+
+### Create Monitoring Pipeline
+**Note:** All actions are against staging environment in us-east-1 region, apart from creating cross account roles in prod.
+
+1. **Prod CloudFront ID Parameter:**
+    ```
+    aws ssm put-parameter --name "/ewelists.com/prod/CloudFrontID" --value "ABCDEFGHIJKL12" --type String --region us-east-1
+    ```
+1. **Creeate Pipeline:**
+    ```
+    aws cloudformation create-stack --stack-name Pipeline-Monitoring \
+     --region us-east-1 \
+     --template-body file://pipeline-monitoring.yaml \
+     --capabilities CAPABILITY_NAMED_IAM
+    ```
+1. **Pipeline CMK:** The pipeline stack creates a KMS CMK for encrypting bucket artifacts, which is necessary when performing cross account actions with the pipeline. In **prod** environments create a parameter:
+    ```
+    aws ssm put-parameter --name /monitoring/pipeline/cmk --type String --value "6596444-38afc6ee-????"
+    ```
+1. **Create Cross Account Roles (Prod):**
+    ```
+    aws cloudformation create-stack --stack-name Pipeline-Monitoring-Roles  \
+      --region us-east-1 \
+      --template-body file://pipeline-monitoring-cross-account-roles.yaml  \
+      --capabilities CAPABILITY_NAMED_IAM
+    ```
+1. **Add Template to Source Bucket:**
+    ```
+    zip /tmp/monitoring-health.zip monitoring-health.yaml
+    aws s3 cp /tmp/monitoring-health.zip s3://pipeline-ewelists-monitoring-us-east-1-source
+    ```
+
 
 ## Testing
 ### Unit and Integration Testing
