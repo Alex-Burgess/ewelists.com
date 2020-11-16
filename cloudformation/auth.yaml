@@ -20,6 +20,10 @@ Parameters:
     Type: String
     Description: Sign up function name
     Default: ''
+  PostAuthFunction:
+    Type: String
+    Description: Sign up function name
+    Default: ''
   FacebookClientIdVersion:
     Type: String
     Default: 1
@@ -52,6 +56,7 @@ Conditions:
   Prod: !Equals [ !Ref Environment, prod ]
   Staging: !Equals [ !Ref Environment, staging ]
   HasSignupFunction: !Not [!Equals [ !Ref SignUpFunction, "" ]]
+  HasPostAuthFunction: !Not [!Equals [ !Ref PostAuthFunction, "" ]]
 
 Resources:
   UserPoolClient:
@@ -255,6 +260,11 @@ Resources:
           !If
             - HasSignupFunction
             - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${SignUpFunction}-${Environment}"
+            - !Ref "AWS::NoValue"
+        PostAuthentication:
+          !If
+            - HasPostAuthFunction
+            - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${PostAuthFunction}-${Environment}"
             - !Ref "AWS::NoValue"
       EmailVerificationMessage: "Thank you for signing up with Ewelists.<p></p>\n\nYour verification code is {####}."
       EmailVerificationSubject: "Verify your Ewelists account"

@@ -327,7 +327,8 @@ Latest details on setting up local python environment are in the [Services repo]
      --template-body file://auth.yaml \
      --capabilities CAPABILITY_NAMED_IAM \
      --parameters ParameterKey=Environment,ParameterValue=test \
-      ParameterKey=SignUpFunction,ParameterValue=lists-signup
+      ParameterKey=SignUpFunction,ParameterValue=lists-signup \
+      ParameterKey=PostAuthFunction,ParameterValue=lists-postauth
     ```
 1. **Test:** Import postman collection json files and update environment variables storing api url IDs.
 
