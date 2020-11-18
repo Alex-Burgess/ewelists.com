@@ -513,12 +513,15 @@ Resources:
               OutputArtifacts:
                 - Name: D-Web-Staging
               Configuration:
-                ProjectName: !Ref StagingDeployWebContentProject
+                ProjectName: !Ref DeployWebContentProject
                 EnvironmentVariables: !Sub |
                   [
                     {"name": "Commit_ID", "value": "#{WebSourceVariables.CommitId}", "type": "PLAINTEXT"},
                     {"name":"ENVIRONMENT","value":"staging","type":"PLAINTEXT"},
-                    {"name":"WEB_BUCKET","value":"staging.${WebBucketName}","type":"PLAINTEXT"}
+                    {"name":"WEB_BUCKET","value":"staging.${WebBucketName}","type":"PLAINTEXT"},
+                    {"name":"PIPELINE","value":"main","type":"PLAINTEXT"},
+                    {"name":"BUILD_CROSS_ACCOUNT_ROLE","value":"","type":"PLAINTEXT"},
+                    {"name":"ACCOUNT_ID","value":"{{resolve:ssm:/accounts/staging:1}}","type":"PLAINTEXT"}
                   ]
               RunOrder: 3
             - Name: End-To-End-Tests
@@ -530,7 +533,7 @@ Resources:
               InputArtifacts:
                 - Name: S-Web
               Configuration:
-                ProjectName: !Ref StagingE2ETestsProject
+                ProjectName: !Ref E2ETestsProject
                 BatchEnabled: true
                 EnvironmentVariables: '[
                   {"name":"ENVIRONMENT","value":"staging","type":"PLAINTEXT"},
@@ -538,7 +541,9 @@ Resources:
                   {"name":"COMMIT_ID","value":"#{WebSourceVariables.CommitId}","type":"PLAINTEXT"},
                   {"name":"COMMIT_MSG","value":"#{WebSourceVariables.CommitMessage}","type":"PLAINTEXT"},
                   {"name":"COMMIT_URL","value":"#{WebSourceVariables.CommitUrl}","type":"PLAINTEXT"},
-                  {"name":"TEST_TAG","value":"smoke","type":"PLAINTEXT"}
+                  {"name":"TEST_TAG","value":"smoke","type":"PLAINTEXT"},
+                  {"name":"BUILD_CROSS_ACCOUNT_ROLE","value":"","type":"PLAINTEXT"},
+                  {"name":"ACCOUNT_ID","value":"{{resolve:ssm:/accounts/staging:1}}","type":"PLAINTEXT"}
                 ]'
               RunOrder: 4
         - Name: Production
@@ -769,7 +774,7 @@ Resources:
               OutputArtifacts:
                 - Name: D-Web-Prod
               Configuration:
-                ProjectName: !Ref ProdDeployWebContentProject
+                ProjectName: !Ref DeployWebContentProject
                 EnvironmentVariables: !Sub |
                   [
                     {"name": "Commit_ID", "value": "#{WebSourceVariables.CommitId}", "type": "PLAINTEXT"},
@@ -789,7 +794,7 @@ Resources:
               InputArtifacts:
                 - Name: S-Web
               Configuration:
-                ProjectName: !Ref ProdE2ETestsProject
+                ProjectName: !Ref E2ETestsProject
                 BatchEnabled: true
                 EnvironmentVariables: !Sub |
                   [
@@ -895,10 +900,10 @@ Resources:
           GroupName: services-logs
           StreamName: Integration-Tests
 
-  StagingE2ETestsProject:
+  E2ETestsProject:
     Type: 'AWS::CodeBuild::Project'
     Properties:
-      Name: Web-E2E-Tests-Staging
+      Name: Web-E2E-Tests
       Description: Performs end-to-end tests with cypress.
       Artifacts:
         Type: CODEPIPELINE
@@ -925,40 +930,10 @@ Resources:
         Restrictions:
           MaximumBuildsAllowed: 10
 
-  ProdE2ETestsProject:
+  DeployWebContentProject:
     Type: 'AWS::CodeBuild::Project'
     Properties:
-      Name: Web-E2E-Tests-Prod
-      Description: Performs end-to-end tests with cypress.
-      Artifacts:
-        Type: CODEPIPELINE
-      Cache:
-        Type: LOCAL
-        Modes:
-        - LOCAL_DOCKER_LAYER_CACHE
-      Environment:
-        Type: LINUX_CONTAINER
-        ComputeType: BUILD_GENERAL1_SMALL
-        Image: 'aws/codebuild/standard:4.0'
-      ServiceRole: !GetAtt E2EBuildProjectRole.Arn
-      Source:
-        Type: CODEPIPELINE
-        BuildSpec: buildspec-cypress-prod.yaml
-      LogsConfig:
-        CloudWatchLogs:
-          Status: ENABLED
-          GroupName: !Ref ServicesLogGroup
-          StreamName: E2E-Tests
-      BuildBatchConfig:
-        ServiceRole: !Ref E2EBatchServiceRole
-        TimeoutInMins: 15
-        Restrictions:
-          MaximumBuildsAllowed: 10
-
-  StagingDeployWebContentProject:
-    Type: 'AWS::CodeBuild::Project'
-    Properties:
-      Name: Web-Deploy-Content-Staging
+      Name: Web-Deploy-Content
       Description: Deploys react web application
       Artifacts:
         Type: CODEPIPELINE
@@ -970,45 +945,10 @@ Resources:
         Type: LINUX_CONTAINER
         ComputeType: BUILD_GENERAL1_SMALL
         Image: aws/codebuild/standard:4.0
-        EnvironmentVariables:
-          - Name: WEB_BUCKET
-            Value: !Ref WebBucketName
-          - Name: ENVIRONMENT
-            Value: prod
       ServiceRole: !GetAtt WebDeployContentRole.Arn
       Source:
         Type: CODEPIPELINE
         BuildSpec: buildspec-react.yaml
-      LogsConfig:
-        CloudWatchLogs:
-          Status: ENABLED
-          GroupName: web
-          StreamName: DeployContent
-
-  ProdDeployWebContentProject:
-    Type: 'AWS::CodeBuild::Project'
-    Properties:
-      Name: Web-Deploy-Content-Prod
-      Description: Deploys react web application
-      Artifacts:
-        Type: CODEPIPELINE
-      Cache:
-        Type: LOCAL
-        Modes:
-        - LOCAL_DOCKER_LAYER_CACHE
-      Environment:
-        Type: LINUX_CONTAINER
-        ComputeType: BUILD_GENERAL1_SMALL
-        Image: aws/codebuild/standard:4.0
-        EnvironmentVariables:
-          - Name: WEB_BUCKET
-            Value: !Ref WebBucketName
-          - Name: ENVIRONMENT
-            Value: prod
-      ServiceRole: !GetAtt WebDeployContentRole.Arn
-      Source:
-        Type: CODEPIPELINE
-        BuildSpec: buildspec-react-prod.yaml
       LogsConfig:
         CloudWatchLogs:
           Status: ENABLED
@@ -1364,8 +1304,7 @@ Resources:
               - codebuild:StopBuild
               - codebuild:RetryBuild
             Resource:
-              - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/Web-E2E-Tests-Staging'
-              - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/Web-E2E-Tests-Prod'
+              - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/Web-E2E-Tests'
           Version: '2012-10-17'
       - PolicyName: BucketEncryptionPolicy
         PolicyDocument:
@@ -1477,6 +1416,7 @@ Resources:
               - !Sub "arn:aws:s3:::staging.${WebBucketName}"
           - Effect: Allow
             Action:
+              - cloudfront:GetInvalidation
               - cloudfront:CreateInvalidation
               - cloudfront:ListDistributions
             Resource: '*'

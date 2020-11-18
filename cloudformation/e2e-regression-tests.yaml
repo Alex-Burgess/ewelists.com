@@ -16,12 +16,8 @@ Parameters:
     Type: String
     Description: Repository where cypress tests reside.
     Default: https://github.com/Ewelists/ewelists.com-web.git
-  BuildSpecStaging:
-    Default: buildspec-cypress-regression-staging.yaml
-    Description: Name of the buildspec file.
-    Type: String
-  BuildSpecProd:
-    Default: buildspec-cypress-regression-prod.yaml
+  BuildSpec:
+    Default: buildspec-cypress-regression.yaml
     Description: Name of the buildspec file.
     Type: String
   TestTag:
@@ -75,7 +71,7 @@ Resources:
           Value: "true"
         - Name: BUILD_CROSS_ACCOUNT_ROLE
           Type: PLAINTEXT
-          Value: !Ref CrossAccountE2ERoleName
+          Value: !If [CreateProd, !Ref CrossAccountE2ERoleName, ""]
         - Name: ACCOUNT_ID
           Type: PLAINTEXT
           Value: !Sub "{{resolve:ssm:/accounts/${Environment}:1}}"
@@ -83,7 +79,7 @@ Resources:
       Source:
         Type: GITHUB
         Location: !Ref Repo
-        BuildSpec: !If [CreateProd, !Ref BuildSpecProd, !Ref BuildSpecStaging]
+        BuildSpec: !Ref BuildSpec
       SourceVersion: !Ref SourceVersion
       LogsConfig:
         CloudWatchLogs:
